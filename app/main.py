@@ -1,6 +1,6 @@
 # app/main.py
 from fastapi import FastAPI
-from app.api.v1.endpoints import health
+from app.api.v1.endpoints import health, auth, posts
 
 app = FastAPI(
     title="Entersys.mx API",
@@ -18,4 +18,8 @@ def read_root():
 # Se incluye el router de health check bajo el prefijo /api/v1
 app.include_router(health.router, prefix="/api/v1", tags=["Health Check"])
 
-# Aquí se añadirán los futuros routers para posts, autenticación, etc.
+# Router de autenticación
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+
+# Router de posts del blog
+app.include_router(posts.router, prefix="/api/v1/posts", tags=["Blog Posts"])

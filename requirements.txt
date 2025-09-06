@@ -12,3 +12,7 @@ alembic
 # Configuración
 pydantic-settings
 python-dotenv
+
+# Seguridad y Autenticación
+passlib[bcrypt]
+python-jose[cryptography]
