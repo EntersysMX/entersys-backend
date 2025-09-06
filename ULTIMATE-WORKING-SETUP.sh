@@ -309,9 +309,24 @@ HEALTH_OK=false
 while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$HEALTH_OK" = false ]; do
     echo "🔄 Intento $((RETRY_COUNT + 1))/$MAX_RETRIES - Probando health check..."
     
+    # Intentar con curl primero
     if docker exec entersys-content-api curl -f -s http://localhost:8000/api/v1/health >/dev/null 2>&1; then
         HEALTH_OK=true
-        echo "✅ Health check interno exitoso"
+        echo "✅ Health check interno exitoso (curl)"
+    # Fallback con Python si curl no está disponible
+    elif docker exec entersys-content-api python -c "
+import urllib.request
+try:
+    response = urllib.request.urlopen('http://localhost:8000/api/v1/health', timeout=10)
+    if response.getcode() == 200:
+        exit(0)
+    else:
+        exit(1)
+except Exception:
+    exit(1)
+" 2>/dev/null; then
+        HEALTH_OK=true
+        echo "✅ Health check interno exitoso (Python)"
     else
         echo "⏳ Aplicación aún no está lista, esperando 15 segundos..."
         sleep 15
@@ -320,7 +335,17 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$HEALTH_OK" = false ]; do
 done
 
 if [ "$HEALTH_OK" = true ]; then
-    INTERNAL_RESPONSE=$(docker exec entersys-content-api curl -s http://localhost:8000/api/v1/health)
+    # Obtener respuesta usando curl o Python como fallback
+    INTERNAL_RESPONSE=$(docker exec entersys-content-api curl -s http://localhost:8000/api/v1/health 2>/dev/null || docker exec entersys-content-api python -c "
+import urllib.request
+import json
+try:
+    response = urllib.request.urlopen('http://localhost:8000/api/v1/health', timeout=10)
+    data = response.read().decode('utf-8')
+    print(data)
+except Exception as e:
+    print('Error: ' + str(e))
+")
     echo "📋 Respuesta interna: $INTERNAL_RESPONSE"
 else
     echo "❌ Health check interno falló después de $MAX_RETRIES intentos"
@@ -335,7 +360,14 @@ else
     docker exec entersys-content-api netstat -tlnp | grep :8000 || echo "Puerto 8000 no está siendo usado"
     echo ""
     echo "• Probando conectividad básica:"
-    docker exec entersys-content-api curl -v http://localhost:8000/ || echo "No hay respuesta en puerto 8000"
+    docker exec entersys-content-api python -c "
+import urllib.request
+try:
+    response = urllib.request.urlopen('http://localhost:8000/', timeout=5)
+    print('✅ Puerto 8000 responde, código:', response.getcode())
+except Exception as e:
+    print('❌ No hay respuesta en puerto 8000:', str(e))
+" || echo "❌ No se pudo probar conectividad"
     echo ""
     echo "💡 Posibles problemas:"
     echo "   - Error en la configuración de la base de datos"
