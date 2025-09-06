@@ -1,36 +1,21 @@
+# app/main.py
 from fastapi import FastAPI
-from pydantic import BaseModel
+from app.api.v1.endpoints import health
 
 app = FastAPI(
-    title="Entersys Backend API",
-    description="Backend API for Entersys.mx project",
+    title="Entersys.mx API",
+    description="Backend para la gestión de contenido de Entersys.mx",
     version="1.0.0"
 )
 
-class HealthResponse(BaseModel):
-    status: str
-    message: str
-    version: str
-
-@app.get("/")
+@app.get("/", tags=["Root"])
 def read_root():
-    return {"message": "Entersys Backend API"}
+    """
+    Endpoint raíz para verificar que la API está en línea.
+    """
+    return {"message": "Welcome to the Entersys.mx API"}
 
-@app.get("/health", response_model=HealthResponse)
-def health_check():
-    return HealthResponse(
-        status="healthy", 
-        message="Entersys Backend API is running",
-        version="1.0.0"
-    )
+# Se incluye el router de health check bajo el prefijo /api/v1
+app.include_router(health.router, prefix="/api/v1", tags=["Health Check"])
 
-@app.get("/api/v1/status")
-def api_status():
-    return {
-        "api_version": "v1",
-        "status": "operational",
-        "services": {
-            "database": "connected",
-            "cache": "operational"
-        }
-    }
+# Aquí se añadirán los futuros routers para posts, autenticación, etc.

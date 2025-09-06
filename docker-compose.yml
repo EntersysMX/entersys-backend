@@ -1,29 +1,36 @@
-version: '3.8'
+# docker-compose.yml
+version: '3.9'
 
 services:
   backend:
-    build: .
-    ports:
-      - "8000:8000"
-    volumes:
-      - .:/app
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/entersys
-    depends_on:
-      - db
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dev-entersys-backend
     restart: unless-stopped
+    
+    # Cargar variables de entorno desde el archivo .env
+    env_file:
+      - .env
+      
+    # Conectar a la red externa de Traefik
+    networks:
+      - traefik_network
+      
+    # Etiquetas para la auto-configuración de Traefik (Descubrimiento de servicios)
+    labels:
+      - "traefik.enable=true"
+      # Regla: Enrutar si el Host es api.dev.entersys.mx
+      - "traefik.http.routers.entersys-backend-dev.rule=Host(`api.dev.entersys.mx`)"
+      # Punto de entrada: usar el puerto 443 (HTTPS)
+      - "traefik.http.routers.entersys-backend-dev.entrypoints=websecure"
+      # Certificado SSL: Usar Let's Encrypt para obtenerlo
+      - "traefik.http.routers.entersys-backend-dev.tls.certresolver=letsencrypt"
+      # Servicio: Indicar a Traefik que el puerto interno de la app es 8000
+      - "traefik.http.services.entersys-backend-dev.loadbalancer.server.port=8000"
 
-  db:
-    image: postgres:15
-    environment:
-      - POSTGRES_DB=entersys
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
+networks:
+  # Definir que usaremos la red 'traefik' que ya existe en el host
+  traefik_network:
+    name: traefik
+    external: true

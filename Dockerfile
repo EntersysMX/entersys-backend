@@ -1,29 +1,24 @@
+# Dockerfile
+# Etapa 1: Imagen base de Python, optimizada y segura.
 FROM python:3.11-slim
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+# Establecer variables de entorno para buenas prácticas en producción.
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
 
-# Set work directory
+# Crear y establecer el directorio de trabajo.
 WORKDIR /app
 
-# Install Poetry
-RUN pip install poetry
+# Copiar el archivo de dependencias primero para aprovechar el cache de Docker.
+COPY requirements.txt .
 
-# Copy Poetry files
-COPY pyproject.toml poetry.lock* ./
+# Instalar las dependencias de Python.
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Configure Poetry: don't create virtual environment
-RUN poetry config virtualenvs.create false
+# Copiar todo el código de la aplicación (la carpeta 'app').
+COPY ./app /app/app
 
-# Install dependencies
-RUN poetry install --no-dev
-
-# Copy project
-COPY . .
-
-# Expose port
-EXPOSE 8000
-
-# Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Comando para ejecutar la aplicación en producción.
+# Gunicorn gestiona los workers de Uvicorn para un rendimiento robusto.
+CMD ["gunicorn", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "app.main:app"]

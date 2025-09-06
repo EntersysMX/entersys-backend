@@ -1,0 +1,39 @@
+# app/core/config.py
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import PostgresDsn, computed_field
+
+class Settings(BaseSettings):
+    """
+    Gestiona la configuración de la aplicación cargando variables de entorno.
+    Utiliza Pydantic para la validación de tipos.
+    """
+    model_config = SettingsConfigDict(
+        env_file=".env", env_ignore_case=True, extra="ignore"
+    )
+
+    # Variables de la base de datos leídas desde el archivo .env
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str
+    POSTGRES_SERVER: str
+    POSTGRES_DB: str
+    POSTGRES_PORT: int = 5432
+
+    @computed_field
+    @property
+    def DATABASE_URI(self) -> str:
+        """
+        Genera la URI de conexión a la base de datos en formato SQLAlchemy.
+        Pydantic validará que la URI construida sea correcta.
+        """
+        dsn = PostgresDsn.build(
+            scheme="postgresql+psycopg2",
+            username=self.POSTGRES_USER,
+            password=self.POSTGRES_PASSWORD,
+            host=self.POSTGRES_SERVER,
+            port=self.POSTGRES_PORT,
+            path=f"/{self.POSTGRES_DB}",
+        )
+        return str(dsn)
+
+# Instancia única de la configuración que será usada en toda la aplicación.
+settings = Settings()

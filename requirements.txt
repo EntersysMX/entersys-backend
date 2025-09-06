@@ -1,0 +1,14 @@
+# requirements.txt
+# FastAPI y Servidores
+fastapi
+uvicorn
+gunicorn
+
+# Base de Datos y ORM
+sqlalchemy==2.0.31
+psycopg2-binary
+alembic
+
+# Configuración
+pydantic-settings
+python-dotenv
