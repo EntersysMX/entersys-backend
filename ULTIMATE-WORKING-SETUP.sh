@@ -196,11 +196,9 @@ cd /srv/servicios
 mkdir -p entersys-apis/content-management
 cd entersys-apis/content-management
 
-# Limpiar si existe
-if [ -d ".git" ]; then
-    echo "🧹 Limpiando deployment anterior..."
-    rm -rf * .git* 2>/dev/null || true
-fi
+# Limpiar completamente el directorio
+echo "🧹 Limpiando deployment anterior..."
+rm -rf * .* 2>/dev/null || true
 
 echo "📥 Clonando código fuente..."
 git clone https://github.com/EntersysMX/entersys-backend.git . --quiet
