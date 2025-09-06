@@ -300,17 +300,48 @@ echo "📊 Estado del contenedor:"
 docker-compose ps
 
 echo ""
-echo "🏥 Test interno del contenedor:"
-if docker exec entersys-content-api curl -f -s http://localhost:8000/api/v1/health >/dev/null 2>&1; then
-    echo "✅ Health check interno exitoso"
+echo "🏥 Esperando que la aplicación esté completamente lista..."
+# Esperar hasta 3 minutos para que la aplicación responda
+RETRY_COUNT=0
+MAX_RETRIES=12
+HEALTH_OK=false
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$HEALTH_OK" = false ]; do
+    echo "🔄 Intento $((RETRY_COUNT + 1))/$MAX_RETRIES - Probando health check..."
+    
+    if docker exec entersys-content-api curl -f -s http://localhost:8000/api/v1/health >/dev/null 2>&1; then
+        HEALTH_OK=true
+        echo "✅ Health check interno exitoso"
+    else
+        echo "⏳ Aplicación aún no está lista, esperando 15 segundos..."
+        sleep 15
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+    fi
+done
+
+if [ "$HEALTH_OK" = true ]; then
     INTERNAL_RESPONSE=$(docker exec entersys-content-api curl -s http://localhost:8000/api/v1/health)
     echo "📋 Respuesta interna: $INTERNAL_RESPONSE"
 else
-    echo "❌ Health check interno falló"
-    echo "📋 Logs del contenedor:"
-    docker logs --tail 20 entersys-content-api
+    echo "❌ Health check interno falló después de $MAX_RETRIES intentos"
+    echo "📋 Logs recientes del contenedor:"
+    docker logs --tail 30 entersys-content-api
     echo ""
-    echo "💡 Problema con la aplicación - revisar configuración"
+    echo "🔍 Diagnóstico adicional:"
+    echo "• Estado del contenedor:"
+    docker-compose ps
+    echo ""
+    echo "• Verificando si el puerto 8000 está en uso:"
+    docker exec entersys-content-api netstat -tlnp | grep :8000 || echo "Puerto 8000 no está siendo usado"
+    echo ""
+    echo "• Probando conectividad básica:"
+    docker exec entersys-content-api curl -v http://localhost:8000/ || echo "No hay respuesta en puerto 8000"
+    echo ""
+    echo "💡 Posibles problemas:"
+    echo "   - Error en la configuración de la base de datos"
+    echo "   - Dependencias Python faltantes"
+    echo "   - Error en el código de la aplicación"
+    echo "   - Problema con las variables de entorno"
     exit 1
 fi
 
