@@ -1,13 +1,13 @@
-# docker-compose.yml - Content Management Service
+# docker-compose.yml - SERVICE_NAME Service Template
 # Part of Entersys modular API architecture
 version: '3.9'
 
 services:
-  content-api:
+  SERVICE_SLUG-api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: entersys-content-api
+    container_name: entersys-SERVICE_SLUG-api
     restart: unless-stopped
     
     # Cargar variables de entorno desde el archivo .env
@@ -22,20 +22,21 @@ services:
     # Etiquetas para la auto-configuración de Traefik (Path-based routing)
     labels:
       - "traefik.enable=true"
-      # Regla: Enrutar paths /content/* a este servicio
-      - "traefik.http.routers.entersys-content-api.rule=Host(`api.dev.entersys.mx`) && PathPrefix(`/content/`)"
+      # Regla: Enrutar paths /SERVICE_PATH/* a este servicio
+      - "traefik.http.routers.entersys-SERVICE_SLUG-api.rule=Host(`api.dev.entersys.mx`) && PathPrefix(`/SERVICE_PATH/`)"
       # Punto de entrada: usar el puerto 443 (HTTPS)
-      - "traefik.http.routers.entersys-content-api.entrypoints=websecure"
+      - "traefik.http.routers.entersys-SERVICE_SLUG-api.entrypoints=websecure"
       # Certificado SSL: Usar Let's Encrypt para obtenerlo
-      - "traefik.http.routers.entersys-content-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.entersys-SERVICE_SLUG-api.tls.certresolver=letsencrypt"
       # Servicio: Indicar a Traefik que el puerto interno de la app es 8000
-      - "traefik.http.services.entersys-content-api.loadbalancer.server.port=8000"
-      # Middleware para strip el prefix /content
-      - "traefik.http.routers.entersys-content-api.middlewares=entersys-content-stripprefix"
-      - "traefik.http.middlewares.entersys-content-stripprefix.stripprefix.prefixes=/content"
+      - "traefik.http.services.entersys-SERVICE_SLUG-api.loadbalancer.server.port=8000"
+      # Middleware para strip el prefix
+      - "traefik.http.routers.entersys-SERVICE_SLUG-api.middlewares=entersys-SERVICE_SLUG-stripprefix"
+      - "traefik.http.middlewares.entersys-SERVICE_SLUG-stripprefix.stripprefix.prefixes=/SERVICE_PATH"
       # Metadata para identificación del servicio
-      - "entersys.service.name=content-management"
+      - "entersys.service.name=SERVICE_NAME"
       - "entersys.service.version=1.0.0"
+      - "entersys.service.path=/SERVICE_PATH"
 
 networks:
   # Red externa para Traefik
@@ -44,4 +45,4 @@ networks:
     external: true
   # Red interna para comunicación entre servicios Entersys
   entersys_internal:
-    driver: bridge
+    external: true

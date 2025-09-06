@@ -4,17 +4,17 @@
 
 echo "🚀 FIRST TIME DEPLOYMENT - Entersys Backend API"
 echo "==============================================="
-echo "Target: https://api.dev.entersys.mx"
+echo "Target: https://api.dev.entersys.mx/content/"
 echo ""
 
 # Navigate to services directory (following infrastructure pattern)
-echo "📁 Setting up directory structure..."
+echo "📁 Setting up modular directory structure..."
 cd /srv/servicios
 
-# Create the project directory
-echo "Creating entersys-backend directory..."
-mkdir -p entersys-backend
-cd entersys-backend
+# Create the modular structure
+echo "Creating entersys-apis/content-management directory..."
+mkdir -p entersys-apis/content-management
+cd entersys-apis/content-management
 
 echo "📥 Cloning repository for first time..."
 git clone https://github.com/EntersysMX/entersys-backend.git .
@@ -133,25 +133,25 @@ echo "This may take a few minutes for Let's Encrypt certificate..."
 sleep 30
 
 echo ""
-echo "🔍 Testing external access via https://api.dev.entersys.mx..."
+echo "🔍 Testing external access via https://api.dev.entersys.mx/content/..."
 
 # Try multiple times as SSL certificate might be generating
 for i in {1..6}; do
     echo "Testing external access... ($i/6)"
     
     # Test HTTPS first
-    if curl -f -s https://api.dev.entersys.mx/api/v1/health > /dev/null 2>&1; then
+    if curl -f -s https://api.dev.entersys.mx/content/v1/health > /dev/null 2>&1; then
         echo "🎉 SUCCESS! HTTPS access working!"
-        external_health=$(curl -s https://api.dev.entersys.mx/api/v1/health)
+        external_health=$(curl -s https://api.dev.entersys.mx/content/v1/health)
         echo "Health check response:"
         echo "$external_health"
         break
     fi
     
     # Test HTTP as fallback
-    if curl -f -s http://api.dev.entersys.mx/api/v1/health > /dev/null 2>&1; then
+    if curl -f -s http://api.dev.entersys.mx/content/v1/health > /dev/null 2>&1; then
         echo "⚠️  HTTP access working (HTTPS certificate may still be generating)"
-        external_health=$(curl -s http://api.dev.entersys.mx/api/v1/health)
+        external_health=$(curl -s http://api.dev.entersys.mx/content/v1/health)
         echo "Health check response:"
         echo "$external_health"
         break
@@ -177,7 +177,7 @@ for i in {1..6}; do
         echo "1. Wait a few more minutes for SSL certificate"
         echo "2. Check Traefik dashboard if available"
         echo "3. Restart Traefik: docker restart traefik"
-        echo "4. Test again: curl https://api.dev.entersys.mx/api/v1/health"
+        echo "4. Test again: curl https://api.dev.entersys.mx/content/v1/health"
     else
         echo "Waiting for certificate generation and routing setup..."
         sleep 30
@@ -191,14 +191,14 @@ docker-compose ps
 echo ""
 echo "🎯 Summary:"
 echo "==========="
-if curl -f -s https://api.dev.entersys.mx/api/v1/health > /dev/null 2>&1; then
+if curl -f -s https://api.dev.entersys.mx/content/v1/health > /dev/null 2>&1; then
     echo "✅ DEPLOYMENT SUCCESSFUL!"
     echo ""
-    echo "🌐 API is now accessible at:"
-    echo "  • Health Check: https://api.dev.entersys.mx/api/v1/health"
-    echo "  • API Documentation: https://api.dev.entersys.mx/docs"
-    echo "  • ReDoc: https://api.dev.entersys.mx/redoc"
-    echo "  • Root endpoint: https://api.dev.entersys.mx/"
+    echo "🌐 Content Management API is now accessible at:"
+    echo "  • Health Check: https://api.dev.entersys.mx/content/v1/health"
+    echo "  • API Documentation: https://api.dev.entersys.mx/content/docs"
+    echo "  • ReDoc: https://api.dev.entersys.mx/content/redoc"
+    echo "  • Root endpoint: https://api.dev.entersys.mx/content/"
 else
     echo "⚠️  DEPLOYMENT COMPLETED but external access needs verification"
     echo ""
