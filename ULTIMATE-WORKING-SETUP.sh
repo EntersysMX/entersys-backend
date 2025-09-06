@@ -284,9 +284,16 @@ echo "✅ Configuración robusta creada"
 echo "🧹 Limpiando contenedores anteriores..."
 docker-compose down 2>/dev/null || true
 
-# Desplegar
-echo "🔨 Desplegando aplicación..."
-docker-compose up -d --build --force-recreate
+# Limpiar imágenes anteriores para forzar rebuild completo
+echo "🔄 Limpiando imágenes anteriores para rebuild completo..."
+docker image prune -f
+docker rmi content-management-content-api 2>/dev/null || echo "Imagen no existía"
+docker rmi $(docker images -q --filter "dangling=true") 2>/dev/null || echo "Sin imágenes huérfanas"
+
+# Desplegar con build forzado sin cache
+echo "🔨 Desplegando aplicación con rebuild completo..."
+docker-compose build --no-cache
+docker-compose up -d --force-recreate
 
 echo "⏳ Esperando 90 segundos para startup completo..."
 sleep 90
