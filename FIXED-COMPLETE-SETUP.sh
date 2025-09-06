@@ -54,8 +54,17 @@ if docker ps | grep -q "dev-entersys-postgres"; then
             docker exec dev-entersys-postgres env | grep POSTGRES || echo "Sin variables POSTGRES"
             echo "🔧 Intentando crear usuario postgres..."
             
-            # Último recurso: crear usuario postgres si no existe
-            docker exec dev-entersys-postgres createuser -s postgres 2>/dev/null || echo "No se pudo crear usuario postgres"
+            # Último recurso: intentar como usuario root/default
+            echo "🔧 Intentando conexión como usuario por defecto del sistema..."
+            
+            # Probar diferentes enfoques para crear el usuario postgres
+            docker exec dev-entersys-postgres sh -c "
+                # Intentar como usuario postgres del sistema
+                su - postgres -c 'createuser -s postgres' 2>/dev/null || 
+                # O como root creando directamente en PostgreSQL
+                psql -U \$(whoami) -c 'CREATE USER postgres WITH SUPERUSER;' 2>/dev/null ||
+                echo 'Intentos de crear usuario fallaron'
+            " || echo "No se pudo crear usuario postgres"
             
             # Probar de nuevo
             if docker exec dev-entersys-postgres psql -U postgres -c "SELECT 1;" >/dev/null 2>&1; then
