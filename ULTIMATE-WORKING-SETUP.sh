@@ -129,11 +129,11 @@ if docker ps | grep -q "dev-entersys-postgres"; then
     # Configurar base de datos con el usuario detectado
     echo "🔧 Configurando base de datos entersys_db..."
     
-    # Construir comando psql apropiado
+    # Construir comando psql apropiado - siempre conectar a la base 'postgres' primero
     if [ -n "$PG_USER" ]; then
-        PSQL_CMD="psql -U $PG_USER"
+        PSQL_CMD="psql -U $PG_USER -d postgres"
     else
-        PSQL_CMD="psql"
+        PSQL_CMD="psql -d postgres"
     fi
     
     # Ejecutar configuración de base de datos

@@ -83,9 +83,9 @@ if docker ps | grep -q "dev-entersys-postgres"; then
     echo "🔧 Configurando base de datos entersys_db..."
     
     if [ -n "$PG_USER" ]; then
-        PSQL_CMD="psql -U $PG_USER"
+        PSQL_CMD="psql -U $PG_USER -d postgres"
     else
-        PSQL_CMD="psql"
+        PSQL_CMD="psql -d postgres"
     fi
     
     docker exec dev-entersys-postgres $PSQL_CMD << 'EOSQL'
