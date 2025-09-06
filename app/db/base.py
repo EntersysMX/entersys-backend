@@ -7,6 +7,5 @@ class Base(DeclarativeBase):
     """
     pass
 
-# Es crucial importar todos los modelos aquí para que la clase Base
-# los registre y Alembic pueda detectarlos automáticamente.
-from app.models.blog import AdminUser, BlogPost
+# Los modelos se importan directamente en cada archivo que los necesite
+# para evitar importaciones circulares

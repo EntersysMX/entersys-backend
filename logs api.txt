@@ -1,0 +1,1506 @@
+ajcortest@dev-server:/srv/servicios/entersys-apis/content-management$ docker compose logs api
+entersys-content-api  | + DB_HOST=172.22.0.2
+entersys-content-api  | + DB_PORT=5432
+entersys-content-api  | Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + echo Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + command -v nc
+entersys-content-api  | + apt-get update
+entersys-content-api  | + apt-get install -y netcat-openbsd
+entersys-content-api  | debconf: unable to initialize frontend: Dialog
+entersys-content-api  | debconf: (TERM is not set, so the dialog frontend is not usable.)
+entersys-content-api  | debconf: falling back to frontend: Readline
+entersys-content-api  | debconf: unable to initialize frontend: Readline
+entersys-content-api  | debconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC entries checked: /etc/perl /usr/local/lib/x86_64-linux-gnu/perl/5.40.1 /usr/local/share/perl/5.40.1 /usr/lib/x86_64-linux-gnu/perl5/5.40 /usr/share/perl5 /usr/lib/x86_64-linux-gnu/perl-base /usr/lib/x86_64-linux-gnu/perl/5.40 /usr/share/perl/5.40 /usr/local/lib/site_perl) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 8, <STDIN> line 1.)
+entersys-content-api  | debconf: falling back to frontend: Teletype
+entersys-content-api  | debconf: unable to initialize frontend: Teletype
+entersys-content-api  | debconf: (This frontend requires a controlling tty.)
+entersys-content-api  | debconf: falling back to frontend: Noninteractive
+entersys-content-api  | + nc -z 172.22.0.2 5432
+entersys-content-api  | Connection to 172.22.0.2 5432 port [tcp/postgresql] succeeded!
+entersys-content-api  | + echo ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + python -m app.scripts.prestart
+entersys-content-api  | ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | INFO:__main__:Esperando a la base de datos en: postgresql+psycopg2://entersys_user:******@172.22.0.2:5432/entersys_db
+entersys-content-api  | INFO:__main__:✅ ¡Conexión a la base de datos establecida exitosamente!
+entersys-content-api  | + echo ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | + echo Iniciando la aplicación Gunicorn...
+entersys-content-api  | + exec gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app
+entersys-content-api  | ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | Iniciando la aplicación Gunicorn...
+entersys-content-api  | [2025-09-06 18:40:34 +0000] [1] [INFO] Starting gunicorn 23.0.0
+entersys-content-api  | [2025-09-06 18:40:34 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+entersys-content-api  | [2025-09-06 18:40:34 +0000] [1] [INFO] Using worker: uvicorn.workers.UvicornWorker
+entersys-content-api  | [2025-09-06 18:40:34 +0000] [67] [INFO] Booting worker with pid: 67
+entersys-content-api  | [2025-09-06 18:40:34 +0000] [68] [INFO] Booting worker with pid: 68
+entersys-content-api  | [2025-09-06 18:40:35 +0000] [67] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:40:35 +0000] [67] [INFO] Worker exiting (pid: 67)
+entersys-content-api  | [2025-09-06 18:40:35 +0000] [68] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:40:35 +0000] [68] [INFO] Worker exiting (pid: 68)
+entersys-content-api  | [2025-09-06 18:40:35 +0000] [1] [ERROR] Worker (pid:67) exited with code 3
+entersys-content-api  | [2025-09-06 18:40:35 +0000] [1] [ERROR] Worker (pid:68) was sent SIGTERM!
+entersys-content-api  | [2025-09-06 18:40:35 +0000] [1] [ERROR] Shutting down: Master
+entersys-content-api  | [2025-09-06 18:40:35 +0000] [1] [ERROR] Reason: Worker failed to boot.
+entersys-content-api  | Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + DB_HOST=172.22.0.2
+entersys-content-api  | + DB_PORT=5432
+entersys-content-api  | + echo Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + command -v nc
+entersys-content-api  | + nc -z 172.22.0.2 5432
+entersys-content-api  | Connection to 172.22.0.2 5432 port [tcp/postgresql] succeeded!
+entersys-content-api  | + echo ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + python -m app.scripts.prestart
+entersys-content-api  | ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | INFO:__main__:Esperando a la base de datos en: postgresql+psycopg2://entersys_user:******@172.22.0.2:5432/entersys_db
+entersys-content-api  | INFO:__main__:✅ ¡Conexión a la base de datos establecida exitosamente!
+entersys-content-api  | ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | Iniciando la aplicación Gunicorn...
+entersys-content-api  | + echo ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | + echo Iniciando la aplicación Gunicorn...
+entersys-content-api  | + exec gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app
+entersys-content-api  | [2025-09-06 18:40:39 +0000] [1] [INFO] Starting gunicorn 23.0.0
+entersys-content-api  | [2025-09-06 18:40:39 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+entersys-content-api  | [2025-09-06 18:40:39 +0000] [1] [INFO] Using worker: uvicorn.workers.UvicornWorker
+entersys-content-api  | [2025-09-06 18:40:39 +0000] [9] [INFO] Booting worker with pid: 9
+entersys-content-api  | [2025-09-06 18:40:39 +0000] [10] [INFO] Booting worker with pid: 10
+entersys-content-api  | [2025-09-06 18:40:40 +0000] [10] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:40:40 +0000] [10] [INFO] Worker exiting (pid: 10)
+entersys-content-api  | [2025-09-06 18:40:40 +0000] [9] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:40:40 +0000] [9] [INFO] Worker exiting (pid: 9)
+entersys-content-api  | [2025-09-06 18:40:40 +0000] [1] [ERROR] Worker (pid:10) exited with code 3
+entersys-content-api  | [2025-09-06 18:40:40 +0000] [1] [ERROR] Worker (pid:9) was sent SIGTERM!
+entersys-content-api  | [2025-09-06 18:40:40 +0000] [1] [ERROR] Shutting down: Master
+entersys-content-api  | [2025-09-06 18:40:40 +0000] [1] [ERROR] Reason: Worker failed to boot.
+entersys-content-api  | + DB_HOST=172.22.0.2
+entersys-content-api  | + DB_PORT=5432
+entersys-content-api  | + echo Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + command -v nc
+entersys-content-api  | Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + nc -z 172.22.0.2 5432
+entersys-content-api  | Connection to 172.22.0.2 5432 port [tcp/postgresql] succeeded!
+entersys-content-api  | + echo ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + python -m app.scripts.prestart
+entersys-content-api  | INFO:__main__:Esperando a la base de datos en: postgresql+psycopg2://entersys_user:******@172.22.0.2:5432/entersys_db
+entersys-content-api  | INFO:__main__:✅ ¡Conexión a la base de datos establecida exitosamente!
+entersys-content-api  | ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | Iniciando la aplicación Gunicorn...
+entersys-content-api  | + echo ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | + echo Iniciando la aplicación Gunicorn...
+entersys-content-api  | + exec gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app
+entersys-content-api  | [2025-09-06 18:40:43 +0000] [1] [INFO] Starting gunicorn 23.0.0
+entersys-content-api  | [2025-09-06 18:40:43 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+entersys-content-api  | [2025-09-06 18:40:43 +0000] [1] [INFO] Using worker: uvicorn.workers.UvicornWorker
+entersys-content-api  | [2025-09-06 18:40:43 +0000] [9] [INFO] Booting worker with pid: 9
+entersys-content-api  | [2025-09-06 18:40:43 +0000] [10] [INFO] Booting worker with pid: 10
+entersys-content-api  | [2025-09-06 18:40:45 +0000] [9] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:40:45 +0000] [9] [INFO] Worker exiting (pid: 9)
+entersys-content-api  | [2025-09-06 18:40:45 +0000] [10] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:40:45 +0000] [10] [INFO] Worker exiting (pid: 10)
+entersys-content-api  | [2025-09-06 18:40:45 +0000] [1] [ERROR] Worker (pid:9) exited with code 3
+entersys-content-api  | [2025-09-06 18:40:45 +0000] [1] [ERROR] Worker (pid:10) was sent SIGTERM!
+entersys-content-api  | [2025-09-06 18:40:45 +0000] [1] [ERROR] Shutting down: Master
+entersys-content-api  | [2025-09-06 18:40:45 +0000] [1] [ERROR] Reason: Worker failed to boot.
+entersys-content-api  | Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + DB_HOST=172.22.0.2
+entersys-content-api  | + DB_PORT=5432
+entersys-content-api  | + echo Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + command -v nc
+entersys-content-api  | + nc -z 172.22.0.2 5432
+entersys-content-api  | ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | Connection to 172.22.0.2 5432 port [tcp/postgresql] succeeded!
+entersys-content-api  | + echo ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + python -m app.scripts.prestart
+entersys-content-api  | INFO:__main__:Esperando a la base de datos en: postgresql+psycopg2://entersys_user:******@172.22.0.2:5432/entersys_db
+entersys-content-api  | INFO:__main__:✅ ¡Conexión a la base de datos establecida exitosamente!
+entersys-content-api  | ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | Iniciando la aplicación Gunicorn...
+entersys-content-api  | + echo ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | + echo Iniciando la aplicación Gunicorn...
+entersys-content-api  | + exec gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app
+entersys-content-api  | [2025-09-06 18:40:48 +0000] [1] [INFO] Starting gunicorn 23.0.0
+entersys-content-api  | [2025-09-06 18:40:48 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+entersys-content-api  | [2025-09-06 18:40:48 +0000] [1] [INFO] Using worker: uvicorn.workers.UvicornWorker
+entersys-content-api  | [2025-09-06 18:40:48 +0000] [9] [INFO] Booting worker with pid: 9
+entersys-content-api  | [2025-09-06 18:40:48 +0000] [10] [INFO] Booting worker with pid: 10
+entersys-content-api  | [2025-09-06 18:40:50 +0000] [9] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:40:50 +0000] [9] [INFO] Worker exiting (pid: 9)
+entersys-content-api  | [2025-09-06 18:40:50 +0000] [10] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:40:50 +0000] [10] [INFO] Worker exiting (pid: 10)
+entersys-content-api  | [2025-09-06 18:40:50 +0000] [1] [ERROR] Worker (pid:9) exited with code 3
+entersys-content-api  | [2025-09-06 18:40:50 +0000] [1] [ERROR] Worker (pid:10) was sent SIGTERM!
+entersys-content-api  | [2025-09-06 18:40:50 +0000] [1] [ERROR] Shutting down: Master
+entersys-content-api  | [2025-09-06 18:40:50 +0000] [1] [ERROR] Reason: Worker failed to boot.
+entersys-content-api  | Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + DB_HOST=172.22.0.2
+entersys-content-api  | + DB_PORT=5432
+entersys-content-api  | + echo Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + command -v nc
+entersys-content-api  | + nc -z 172.22.0.2 5432
+entersys-content-api  | Connection to 172.22.0.2 5432 port [tcp/postgresql] succeeded!
+entersys-content-api  | + echo ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + python -m app.scripts.prestart
+entersys-content-api  | ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | INFO:__main__:Esperando a la base de datos en: postgresql+psycopg2://entersys_user:******@172.22.0.2:5432/entersys_db
+entersys-content-api  | INFO:__main__:✅ ¡Conexión a la base de datos establecida exitosamente!
+entersys-content-api  | + echo ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | + echo Iniciando la aplicación Gunicorn...
+entersys-content-api  | Iniciando la aplicación Gunicorn...
+entersys-content-api  | + exec gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app
+entersys-content-api  | [2025-09-06 18:40:53 +0000] [1] [INFO] Starting gunicorn 23.0.0
+entersys-content-api  | [2025-09-06 18:40:53 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+entersys-content-api  | [2025-09-06 18:40:53 +0000] [1] [INFO] Using worker: uvicorn.workers.UvicornWorker
+entersys-content-api  | [2025-09-06 18:40:53 +0000] [9] [INFO] Booting worker with pid: 9
+entersys-content-api  | [2025-09-06 18:40:53 +0000] [10] [INFO] Booting worker with pid: 10
+entersys-content-api  | [2025-09-06 18:40:55 +0000] [9] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:40:55 +0000] [9] [INFO] Worker exiting (pid: 9)
+entersys-content-api  | [2025-09-06 18:40:55 +0000] [10] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:40:55 +0000] [10] [INFO] Worker exiting (pid: 10)
+entersys-content-api  | [2025-09-06 18:40:55 +0000] [1] [ERROR] Worker (pid:9) exited with code 3
+entersys-content-api  | [2025-09-06 18:40:55 +0000] [1] [ERROR] Worker (pid:10) was sent SIGTERM!
+entersys-content-api  | [2025-09-06 18:40:55 +0000] [1] [ERROR] Shutting down: Master
+entersys-content-api  | [2025-09-06 18:40:55 +0000] [1] [ERROR] Reason: Worker failed to boot.
+entersys-content-api  | Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + DB_HOST=172.22.0.2
+entersys-content-api  | + DB_PORT=5432
+entersys-content-api  | + echo Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + command -v nc
+entersys-content-api  | + nc -z 172.22.0.2 5432
+entersys-content-api  | Connection to 172.22.0.2 5432 port [tcp/postgresql] succeeded!
+entersys-content-api  | ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + echo ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + python -m app.scripts.prestart
+entersys-content-api  | INFO:__main__:Esperando a la base de datos en: postgresql+psycopg2://entersys_user:******@172.22.0.2:5432/entersys_db
+entersys-content-api  | INFO:__main__:✅ ¡Conexión a la base de datos establecida exitosamente!
+entersys-content-api  | + echo ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | + echo Iniciando la aplicación Gunicorn...
+entersys-content-api  | + exec gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app
+entersys-content-api  | ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | Iniciando la aplicación Gunicorn...
+entersys-content-api  | [2025-09-06 18:41:00 +0000] [1] [INFO] Starting gunicorn 23.0.0
+entersys-content-api  | [2025-09-06 18:41:00 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+entersys-content-api  | [2025-09-06 18:41:00 +0000] [1] [INFO] Using worker: uvicorn.workers.UvicornWorker
+entersys-content-api  | [2025-09-06 18:41:00 +0000] [9] [INFO] Booting worker with pid: 9
+entersys-content-api  | [2025-09-06 18:41:00 +0000] [10] [INFO] Booting worker with pid: 10
+entersys-content-api  | [2025-09-06 18:41:01 +0000] [10] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:41:01 +0000] [10] [INFO] Worker exiting (pid: 10)
+entersys-content-api  | [2025-09-06 18:41:01 +0000] [9] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:41:01 +0000] [9] [INFO] Worker exiting (pid: 9)
+entersys-content-api  | [2025-09-06 18:41:01 +0000] [1] [ERROR] Worker (pid:10) exited with code 3
+entersys-content-api  | [2025-09-06 18:41:01 +0000] [1] [ERROR] Worker (pid:9) was sent SIGTERM!
+entersys-content-api  | [2025-09-06 18:41:01 +0000] [1] [ERROR] Shutting down: Master
+entersys-content-api  | [2025-09-06 18:41:01 +0000] [1] [ERROR] Reason: Worker failed to boot.
+entersys-content-api  | Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + DB_HOST=172.22.0.2
+entersys-content-api  | + DB_PORT=5432
+entersys-content-api  | + echo Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + command -v nc
+entersys-content-api  | + nc -z 172.22.0.2 5432
+entersys-content-api  | Connection to 172.22.0.2 5432 port [tcp/postgresql] succeeded!
+entersys-content-api  | ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + echo ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + python -m app.scripts.prestart
+entersys-content-api  | INFO:__main__:Esperando a la base de datos en: postgresql+psycopg2://entersys_user:******@172.22.0.2:5432/entersys_db
+entersys-content-api  | INFO:__main__:✅ ¡Conexión a la base de datos establecida exitosamente!
+entersys-content-api  | ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | Iniciando la aplicación Gunicorn...
+entersys-content-api  | + echo ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | + echo Iniciando la aplicación Gunicorn...
+entersys-content-api  | + exec gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app
+entersys-content-api  | [2025-09-06 18:41:07 +0000] [1] [INFO] Starting gunicorn 23.0.0
+entersys-content-api  | [2025-09-06 18:41:07 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+entersys-content-api  | [2025-09-06 18:41:07 +0000] [1] [INFO] Using worker: uvicorn.workers.UvicornWorker
+entersys-content-api  | [2025-09-06 18:41:07 +0000] [9] [INFO] Booting worker with pid: 9
+entersys-content-api  | [2025-09-06 18:41:07 +0000] [10] [INFO] Booting worker with pid: 10
+entersys-content-api  | [2025-09-06 18:41:09 +0000] [10] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:41:09 +0000] [10] [INFO] Worker exiting (pid: 10)
+entersys-content-api  | [2025-09-06 18:41:09 +0000] [9] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:41:09 +0000] [9] [INFO] Worker exiting (pid: 9)
+entersys-content-api  | [2025-09-06 18:41:09 +0000] [1] [ERROR] Worker (pid:9) exited with code 3
+entersys-content-api  | [2025-09-06 18:41:09 +0000] [1] [ERROR] Worker (pid:10) was sent SIGTERM!
+entersys-content-api  | [2025-09-06 18:41:09 +0000] [1] [ERROR] Shutting down: Master
+entersys-content-api  | [2025-09-06 18:41:09 +0000] [1] [ERROR] Reason: Worker failed to boot.
+entersys-content-api  | Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + DB_HOST=172.22.0.2
+entersys-content-api  | + DB_PORT=5432
+entersys-content-api  | + echo Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + command -v nc
+entersys-content-api  | + nc -z 172.22.0.2 5432
+entersys-content-api  | Connection to 172.22.0.2 5432 port [tcp/postgresql] succeeded!
+entersys-content-api  | + echo ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + python -m app.scripts.prestart
+entersys-content-api  | ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | INFO:__main__:Esperando a la base de datos en: postgresql+psycopg2://entersys_user:******@172.22.0.2:5432/entersys_db
+entersys-content-api  | INFO:__main__:✅ ¡Conexión a la base de datos establecida exitosamente!
+entersys-content-api  | + echo ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | + echo Iniciando la aplicación Gunicorn...
+entersys-content-api  | + exec gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app
+entersys-content-api  | ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | Iniciando la aplicación Gunicorn...
+entersys-content-api  | [2025-09-06 18:41:18 +0000] [1] [INFO] Starting gunicorn 23.0.0
+entersys-content-api  | [2025-09-06 18:41:18 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+entersys-content-api  | [2025-09-06 18:41:18 +0000] [1] [INFO] Using worker: uvicorn.workers.UvicornWorker
+entersys-content-api  | [2025-09-06 18:41:18 +0000] [9] [INFO] Booting worker with pid: 9
+entersys-content-api  | [2025-09-06 18:41:18 +0000] [10] [INFO] Booting worker with pid: 10
+entersys-content-api  | [2025-09-06 18:41:20 +0000] [9] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:41:20 +0000] [9] [INFO] Worker exiting (pid: 9)
+entersys-content-api  | [2025-09-06 18:41:20 +0000] [10] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:41:20 +0000] [10] [INFO] Worker exiting (pid: 10)
+entersys-content-api  | [2025-09-06 18:41:20 +0000] [1] [ERROR] Worker (pid:9) exited with code 3
+entersys-content-api  | [2025-09-06 18:41:20 +0000] [1] [ERROR] Worker (pid:10) was sent SIGTERM!
+entersys-content-api  | [2025-09-06 18:41:20 +0000] [1] [ERROR] Shutting down: Master
+entersys-content-api  | [2025-09-06 18:41:20 +0000] [1] [ERROR] Reason: Worker failed to boot.
+entersys-content-api  | + DB_HOST=172.22.0.2
+entersys-content-api  | + DB_PORT=5432
+entersys-content-api  | + echo Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + command -v nc
+entersys-content-api  | Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + nc -z 172.22.0.2 5432
+entersys-content-api  | Connection to 172.22.0.2 5432 port [tcp/postgresql] succeeded!
+entersys-content-api  | ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + echo ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + python -m app.scripts.prestart
+entersys-content-api  | INFO:__main__:Esperando a la base de datos en: postgresql+psycopg2://entersys_user:******@172.22.0.2:5432/entersys_db
+entersys-content-api  | INFO:__main__:✅ ¡Conexión a la base de datos establecida exitosamente!
+entersys-content-api  | ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | Iniciando la aplicación Gunicorn...
+entersys-content-api  | + echo ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | + echo Iniciando la aplicación Gunicorn...
+entersys-content-api  | + exec gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app
+entersys-content-api  | [2025-09-06 18:41:36 +0000] [1] [INFO] Starting gunicorn 23.0.0
+entersys-content-api  | [2025-09-06 18:41:36 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+entersys-content-api  | [2025-09-06 18:41:36 +0000] [1] [INFO] Using worker: uvicorn.workers.UvicornWorker
+entersys-content-api  | [2025-09-06 18:41:36 +0000] [9] [INFO] Booting worker with pid: 9
+entersys-content-api  | [2025-09-06 18:41:36 +0000] [10] [INFO] Booting worker with pid: 10
+entersys-content-api  | [2025-09-06 18:41:37 +0000] [9] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:41:37 +0000] [9] [INFO] Worker exiting (pid: 9)
+entersys-content-api  | [2025-09-06 18:41:37 +0000] [10] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:41:37 +0000] [10] [INFO] Worker exiting (pid: 10)
+entersys-content-api  | [2025-09-06 18:41:37 +0000] [1] [ERROR] Worker (pid:9) exited with code 3
+entersys-content-api  | [2025-09-06 18:41:37 +0000] [1] [ERROR] Worker (pid:10) was sent SIGTERM!
+entersys-content-api  | [2025-09-06 18:41:37 +0000] [1] [ERROR] Shutting down: Master
+entersys-content-api  | [2025-09-06 18:41:37 +0000] [1] [ERROR] Reason: Worker failed to boot.
+entersys-content-api  | + DB_HOST=172.22.0.2
+entersys-content-api  | + DB_PORT=5432
+entersys-content-api  | + echo Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + command -v nc
+entersys-content-api  | + nc -z 172.22.0.2 5432
+entersys-content-api  | Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | Connection to 172.22.0.2 5432 port [tcp/postgresql] succeeded!
+entersys-content-api  | + echo ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + python -m app.scripts.prestart
+entersys-content-api  | ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | INFO:__main__:Esperando a la base de datos en: postgresql+psycopg2://entersys_user:******@172.22.0.2:5432/entersys_db
+entersys-content-api  | INFO:__main__:✅ ¡Conexión a la base de datos establecida exitosamente!
+entersys-content-api  | + echo ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | + echo Iniciando la aplicación Gunicorn...
+entersys-content-api  | Iniciando la aplicación Gunicorn...
+entersys-content-api  | + exec gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app
+entersys-content-api  | [2025-09-06 18:42:06 +0000] [1] [INFO] Starting gunicorn 23.0.0
+entersys-content-api  | [2025-09-06 18:42:06 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+entersys-content-api  | [2025-09-06 18:42:06 +0000] [1] [INFO] Using worker: uvicorn.workers.UvicornWorker
+entersys-content-api  | [2025-09-06 18:42:06 +0000] [9] [INFO] Booting worker with pid: 9
+entersys-content-api  | [2025-09-06 18:42:06 +0000] [10] [INFO] Booting worker with pid: 10
+entersys-content-api  | [2025-09-06 18:42:07 +0000] [10] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:42:07 +0000] [10] [INFO] Worker exiting (pid: 10)
+entersys-content-api  | [2025-09-06 18:42:07 +0000] [9] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:42:07 +0000] [9] [INFO] Worker exiting (pid: 9)
+entersys-content-api  | [2025-09-06 18:42:08 +0000] [1] [ERROR] Worker (pid:10) exited with code 3
+entersys-content-api  | [2025-09-06 18:42:08 +0000] [1] [ERROR] Worker (pid:9) was sent SIGTERM!
+entersys-content-api  | [2025-09-06 18:42:08 +0000] [1] [ERROR] Shutting down: Master
+entersys-content-api  | [2025-09-06 18:42:08 +0000] [1] [ERROR] Reason: Worker failed to boot.
+entersys-content-api  | Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + DB_HOST=172.22.0.2
+entersys-content-api  | + DB_PORT=5432
+entersys-content-api  | + echo Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + command -v nc
+entersys-content-api  | + nc -z 172.22.0.2 5432
+entersys-content-api  | ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | Connection to 172.22.0.2 5432 port [tcp/postgresql] succeeded!
+entersys-content-api  | + echo ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + python -m app.scripts.prestart
+entersys-content-api  | INFO:__main__:Esperando a la base de datos en: postgresql+psycopg2://entersys_user:******@172.22.0.2:5432/entersys_db
+entersys-content-api  | INFO:__main__:✅ ¡Conexión a la base de datos establecida exitosamente!
+entersys-content-api  | + echo ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | + echo Iniciando la aplicación Gunicorn...
+entersys-content-api  | + exec gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app
+entersys-content-api  | ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | Iniciando la aplicación Gunicorn...
+entersys-content-api  | [2025-09-06 18:43:02 +0000] [1] [INFO] Starting gunicorn 23.0.0
+entersys-content-api  | [2025-09-06 18:43:02 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+entersys-content-api  | [2025-09-06 18:43:02 +0000] [1] [INFO] Using worker: uvicorn.workers.UvicornWorker
+entersys-content-api  | [2025-09-06 18:43:02 +0000] [9] [INFO] Booting worker with pid: 9
+entersys-content-api  | [2025-09-06 18:43:02 +0000] [10] [INFO] Booting worker with pid: 10
+entersys-content-api  | [2025-09-06 18:43:03 +0000] [9] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:43:03 +0000] [9] [INFO] Worker exiting (pid: 9)
+entersys-content-api  | [2025-09-06 18:43:03 +0000] [10] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:43:03 +0000] [10] [INFO] Worker exiting (pid: 10)
+entersys-content-api  | [2025-09-06 18:43:03 +0000] [1] [ERROR] Worker (pid:9) exited with code 3
+entersys-content-api  | [2025-09-06 18:43:03 +0000] [1] [ERROR] Worker (pid:10) was sent SIGTERM!
+entersys-content-api  | [2025-09-06 18:43:04 +0000] [1] [ERROR] Shutting down: Master
+entersys-content-api  | [2025-09-06 18:43:04 +0000] [1] [ERROR] Reason: Worker failed to boot.
+entersys-content-api  | Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + DB_HOST=172.22.0.2
+entersys-content-api  | + DB_PORT=5432
+entersys-content-api  | + echo Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + command -v nc
+entersys-content-api  | + nc -z 172.22.0.2 5432
+entersys-content-api  | Connection to 172.22.0.2 5432 port [tcp/postgresql] succeeded!
+entersys-content-api  | ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + echo ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + python -m app.scripts.prestart
+entersys-content-api  | INFO:__main__:Esperando a la base de datos en: postgresql+psycopg2://entersys_user:******@172.22.0.2:5432/entersys_db
+entersys-content-api  | INFO:__main__:✅ ¡Conexión a la base de datos establecida exitosamente!
+entersys-content-api  | + echo ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | + echo Iniciando la aplicación Gunicorn...
+entersys-content-api  | + exec gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app
+entersys-content-api  | ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | Iniciando la aplicación Gunicorn...
+entersys-content-api  | [2025-09-06 18:44:07 +0000] [1] [INFO] Starting gunicorn 23.0.0
+entersys-content-api  | [2025-09-06 18:44:07 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+entersys-content-api  | [2025-09-06 18:44:07 +0000] [1] [INFO] Using worker: uvicorn.workers.UvicornWorker
+entersys-content-api  | [2025-09-06 18:44:07 +0000] [9] [INFO] Booting worker with pid: 9
+entersys-content-api  | [2025-09-06 18:44:07 +0000] [10] [INFO] Booting worker with pid: 10
+entersys-content-api  | [2025-09-06 18:44:08 +0000] [9] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:44:08 +0000] [9] [INFO] Worker exiting (pid: 9)
+entersys-content-api  | [2025-09-06 18:44:08 +0000] [10] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:44:08 +0000] [10] [INFO] Worker exiting (pid: 10)
+entersys-content-api  | [2025-09-06 18:44:08 +0000] [1] [ERROR] Worker (pid:9) exited with code 3
+entersys-content-api  | [2025-09-06 18:44:08 +0000] [1] [ERROR] Worker (pid:10) was sent SIGTERM!
+entersys-content-api  | [2025-09-06 18:44:08 +0000] [1] [ERROR] Shutting down: Master
+entersys-content-api  | [2025-09-06 18:44:08 +0000] [1] [ERROR] Reason: Worker failed to boot.
+entersys-content-api  | Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + DB_HOST=172.22.0.2
+entersys-content-api  | + DB_PORT=5432
+entersys-content-api  | + echo Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + command -v nc
+entersys-content-api  | + nc -z 172.22.0.2 5432
+entersys-content-api  | ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | Connection to 172.22.0.2 5432 port [tcp/postgresql] succeeded!
+entersys-content-api  | + echo ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + python -m app.scripts.prestart
+entersys-content-api  | INFO:__main__:Esperando a la base de datos en: postgresql+psycopg2://entersys_user:******@172.22.0.2:5432/entersys_db
+entersys-content-api  | INFO:__main__:✅ ¡Conexión a la base de datos establecida exitosamente!
+entersys-content-api  | ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | Iniciando la aplicación Gunicorn...
+entersys-content-api  | + echo ✅ Paso 3: La conexión a la base de datos fue exitosa.
+entersys-content-api  | + echo Iniciando la aplicación Gunicorn...
+entersys-content-api  | + exec gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app
+entersys-content-api  | [2025-09-06 18:45:11 +0000] [1] [INFO] Starting gunicorn 23.0.0
+entersys-content-api  | [2025-09-06 18:45:11 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+entersys-content-api  | [2025-09-06 18:45:11 +0000] [1] [INFO] Using worker: uvicorn.workers.UvicornWorker
+entersys-content-api  | [2025-09-06 18:45:11 +0000] [9] [INFO] Booting worker with pid: 9
+entersys-content-api  | [2025-09-06 18:45:11 +0000] [10] [INFO] Booting worker with pid: 10
+entersys-content-api  | [2025-09-06 18:45:12 +0000] [9] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:45:12 +0000] [9] [INFO] Worker exiting (pid: 9)
+entersys-content-api  | [2025-09-06 18:45:12 +0000] [10] [ERROR] Exception in worker process
+entersys-content-api  | Traceback (most recent call last):
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/arbiter.py", line 608, in spawn_worker
+entersys-content-api  |     worker.init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/uvicorn/workers.py", line 75, in init_process
+entersys-content-api  |     super().init_process()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 135, in init_process
+entersys-content-api  |     self.load_wsgi()
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/workers/base.py", line 147, in load_wsgi
+entersys-content-api  |     self.wsgi = self.app.wsgi()
+entersys-content-api  |                 ^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/base.py", line 66, in wsgi
+entersys-content-api  |     self.callable = self.load()
+entersys-content-api  |                     ^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 57, in load
+entersys-content-api  |     return self.load_wsgiapp()
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/app/wsgiapp.py", line 47, in load_wsgiapp
+entersys-content-api  |     return util.import_app(self.app_uri)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/site-packages/gunicorn/util.py", line 370, in import_app
+entersys-content-api  |     mod = importlib.import_module(module)
+entersys-content-api  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "/usr/local/lib/python3.11/importlib/__init__.py", line 126, in import_module
+entersys-content-api  |     return _bootstrap._gcd_import(name[level:], package, level)
+entersys-content-api  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1204, in _gcd_import
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+entersys-content-api  |   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+entersys-content-api  |   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+entersys-content-api  |   File "/app/app/main.py", line 3, in <module>
+entersys-content-api  |     from app.api.v1.endpoints import health, auth, posts
+entersys-content-api  |   File "/app/app/api/v1/endpoints/auth.py", line 8, in <module>
+entersys-content-api  |     from app.crud.crud_user import authenticate_user
+entersys-content-api  |   File "/app/app/crud/crud_user.py", line 2, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser
+entersys-content-api  |   File "/app/app/models/blog.py", line 10, in <module>
+entersys-content-api  |     from app.db.base import Base
+entersys-content-api  |   File "/app/app/db/base.py", line 12, in <module>
+entersys-content-api  |     from app.models.blog import AdminUser, BlogPost
+entersys-content-api  | ImportError: cannot import name 'AdminUser' from partially initialized module 'app.models.blog' (most likely due to a circular import) (/app/app/models/blog.py)
+entersys-content-api  | [2025-09-06 18:45:12 +0000] [10] [INFO] Worker exiting (pid: 10)
+entersys-content-api  | [2025-09-06 18:45:13 +0000] [1] [ERROR] Worker (pid:9) exited with code 3
+entersys-content-api  | [2025-09-06 18:45:13 +0000] [1] [ERROR] Worker (pid:10) was sent SIGTERM!
+entersys-content-api  | [2025-09-06 18:45:13 +0000] [1] [ERROR] Shutting down: Master
+entersys-content-api  | [2025-09-06 18:45:13 +0000] [1] [ERROR] Reason: Worker failed to boot.
+entersys-content-api  | + DB_HOST=172.22.0.2
+entersys-content-api  | + DB_PORT=5432
+entersys-content-api  | + echo Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + command -v nc
+entersys-content-api  | Paso 1: Esperando a que el servicio de red de la base de datos esté disponible...
+entersys-content-api  | + nc -z 172.22.0.2 5432
+entersys-content-api  | ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | Connection to 172.22.0.2 5432 port [tcp/postgresql] succeeded!
+entersys-content-api  | + echo ✅ Paso 2: El puerto de la base de datos está abierto. Verificando conexión completa...
+entersys-content-api  | + python -m app.scripts.prestart
+entersys-content-api  | INFO:__main__:Esperando a la base de datos en: postgresql+psycopg2://entersys_user:******@172.22.0.2:5432/entersys_db
+entersys-content-api  | INFO:__main__:✅ ¡Conexión a la base de datos establecida exitosamente!
