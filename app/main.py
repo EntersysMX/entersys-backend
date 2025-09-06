@@ -13,7 +13,7 @@ def read_root():
     """
     Endpoint raíz para verificar que la API está en línea.
     """
-    return {"message": "Welcome to the Entersys.mx API"}
+    return {"message": "Welcome to the Entersys.mx API - JWT Auth Ready"}
 
 # Se incluye el router de health check bajo el prefijo /api/v1
 app.include_router(health.router, prefix="/api/v1", tags=["Health Check"])
