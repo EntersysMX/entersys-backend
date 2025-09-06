@@ -1,30 +1,23 @@
-# Dockerfile
-# Etapa 1: Imagen base de Python, optimizada y segura.
+# Dockerfile (VERSIÓN FINAL Y ROBUSTA)
+
 FROM python:3.11-slim
 
-# Establecer variables de entorno para buenas prácticas en producción.
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-# Instalar curl para health checks
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Añadimos /app al PYTHONPATH. Esto es crucial.
+ENV PYTHONPATH /app
 
-# Crear y establecer el directorio de trabajo.
 WORKDIR /app
 
-# Copiar el archivo de dependencias primero para aprovechar el cache de Docker.
 COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Instalar las dependencias de Python.
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Copiamos todo el proyecto.
+COPY . .
 
-# Copiar todo el código de la aplicación (la carpeta 'app').
-COPY ./app /app/app
+# Damos permisos de ejecución al script de arranque.
+RUN chmod +x ./entrypoint.sh
 
-# Comando para ejecutar la aplicación en producción.
-# Gunicorn gestiona los workers de Uvicorn para un rendimiento robusto.
-CMD ["gunicorn", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "app.main:app"]
+# El ENTRYPOINT ejecuta nuestro script de arranque.
+ENTRYPOINT ["./entrypoint.sh"]

@@ -1,47 +1,41 @@
-# docker-compose.yml - Content Management Service
-# Part of Entersys modular API architecture
-version: '3.9'
-
+# docker-compose.yml (VERSIÓN FINAL Y ROBUSTA)
 services:
-  content-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: entersys-content-api
-    restart: unless-stopped
-    
-    # Cargar variables de entorno desde el archivo .env
-    env_file:
-      - .env
-      
-    # Conectar a redes
+  database:
+    image: postgres:15-alpine
+    container_name: dev-entersys-postgres
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file: .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
-      - traefik_network
-      - entersys_internal
-      
-    # Etiquetas para la auto-configuración de Traefik (Path-based routing)
+      - entersys_net
+  api:
+    build: .
+    container_name: entersys-content-api
+    restart: always
+    env_file: .env
+    networks:
+      - entersys_net
+      - traefik_net
     labels:
       - "traefik.enable=true"
-      # Regla: Enrutar paths /content/* a este servicio
-      - "traefik.http.routers.entersys-content-api.rule=Host(`api.dev.entersys.mx`) && PathPrefix(`/content/`)"
-      # Punto de entrada: usar el puerto 443 (HTTPS)
-      - "traefik.http.routers.entersys-content-api.entrypoints=websecure"
-      # Certificado SSL: Usar Let's Encrypt para obtenerlo
-      - "traefik.http.routers.entersys-content-api.tls.certresolver=letsencrypt"
-      # Servicio: Indicar a Traefik que el puerto interno de la app es 8000
-      - "traefik.http.services.entersys-content-api.loadbalancer.server.port=8000"
-      # Middleware para strip el prefix /content
-      - "traefik.http.routers.entersys-content-api.middlewares=entersys-content-stripprefix"
-      - "traefik.http.middlewares.entersys-content-stripprefix.stripprefix.prefixes=/content"
-      # Metadata para identificación del servicio
-      - "entersys.service.name=content-management"
-      - "entersys.service.version=1.0.0"
-
+      - "traefik.http.routers.entersys-api-dev.rule=Host(`api.dev.entersys.mx`)"
+      - "traefik.http.routers.entersys-api-dev.entrypoints=websecure"
+      - "traefik.http.routers.entersys-api-dev.tls.certresolver=letsencrypt"
+      - "traefik.http.services.entersys-api-dev.loadbalancer.server.port=8000"
+    depends_on:
+      database:
+        condition: service_healthy
 networks:
-  # Red externa para Traefik
-  traefik_network:
+  traefik_net:
     name: traefik
     external: true
-  # Red interna para comunicación entre servicios Entersys
-  entersys_internal:
-    driver: bridge
+  entersys_net: {}
+volumes:
+  postgres_data:
+    name: dev-entersys-pgdata
