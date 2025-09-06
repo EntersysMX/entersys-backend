@@ -206,7 +206,7 @@ git clone https://github.com/EntersysMX/entersys-backend.git . --quiet
 echo "⚙️ Creando .env..."
 cat > .env << 'ENVEOF'
 POSTGRES_USER=entersys_user
-POSTGRES_PASSWORD=entersys_dev_pass_2025
+POSTGRES_PASSWORD=Operaciones.2025
 POSTGRES_SERVER=dev-entersys-postgres
 POSTGRES_DB=entersys_db
 POSTGRES_PORT=5432

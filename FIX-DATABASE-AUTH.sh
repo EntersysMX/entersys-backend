@@ -76,7 +76,7 @@ docker exec dev-entersys-postgres $PSQL_CMD << 'EOSQL'
 DROP USER IF EXISTS entersys_user;
 
 -- Crear usuario con contraseña correcta
-CREATE USER entersys_user WITH ENCRYPTED PASSWORD 'entersys_dev_pass_2025';
+CREATE USER entersys_user WITH ENCRYPTED PASSWORD 'Operaciones.2025';
 
 -- Dar permisos de superusuario temporalmente para configurar
 ALTER USER entersys_user CREATEDB;
