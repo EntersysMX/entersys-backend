@@ -1,16 +1,20 @@
+from typing import TYPE_CHECKING, Optional
 from sqlalchemy.orm import Session
-from app.models.blog import AdminUser
 from app.core.security import get_password_hash, verify_password
 
+if TYPE_CHECKING:
+    from app.models.blog import AdminUser
 
-def get_user_by_email(db: Session, email: str) -> AdminUser:
+
+def get_user_by_email(db: Session, email: str) -> Optional["AdminUser"]:
     """
     Obtiene un usuario por su email.
     """
+    from app.models.blog import AdminUser
     return db.query(AdminUser).filter(AdminUser.email == email).first()
 
 
-def authenticate_user(db: Session, email: str, password: str) -> AdminUser:
+def authenticate_user(db: Session, email: str, password: str) -> Optional["AdminUser"]:
     """
     Autentica un usuario verificando email y contraseña.
     """
@@ -24,10 +28,11 @@ def authenticate_user(db: Session, email: str, password: str) -> AdminUser:
     return user
 
 
-def create_user(db: Session, email: str, password: str) -> AdminUser:
+def create_user(db: Session, email: str, password: str) -> "AdminUser":
     """
     Crea un nuevo usuario administrador.
     """
+    from app.models.blog import AdminUser
     hashed_password = get_password_hash(password)
     db_user = AdminUser(
         email=email,

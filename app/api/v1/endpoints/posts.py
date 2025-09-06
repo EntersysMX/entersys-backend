@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user
 from app.crud import crud_post
 from app.db.session import get_db
-from app.models.blog import AdminUser
 from app.schemas.post import Post, PostCreate, PostUpdate
 
 router = APIRouter()
@@ -49,7 +48,7 @@ def read_post_by_slug(
 def create_post(
     post: PostCreate,
     db: Session = Depends(get_db),
-    current_user: AdminUser = Depends(get_current_user),
+    current_user: "AdminUser" = Depends(get_current_user),
 ):
     """
     Crea un nuevo post (protegido - requiere autenticación).
@@ -69,7 +68,7 @@ def update_post(
     post_id: int,
     post_update: PostUpdate,
     db: Session = Depends(get_db),
-    current_user: AdminUser = Depends(get_current_user),
+    current_user: "AdminUser" = Depends(get_current_user),
 ):
     """
     Actualiza un post existente (protegido - requiere autenticación).
@@ -96,7 +95,7 @@ def update_post(
 def delete_post(
     post_id: int,
     db: Session = Depends(get_db),
-    current_user: AdminUser = Depends(get_current_user),
+    current_user: "AdminUser" = Depends(get_current_user),
 ):
     """
     Elimina un post (protegido - requiere autenticación).

@@ -1,23 +1,27 @@
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
-from app.models.blog import BlogPost, PostStatusEnum
 from app.schemas.post import PostCreate, PostUpdate
 
+if TYPE_CHECKING:
+    from app.models.blog import BlogPost, PostStatusEnum
 
-def get_post(db: Session, post_id: int) -> Optional[BlogPost]:
+
+def get_post(db: Session, post_id: int) -> Optional["BlogPost"]:
     """
     Obtiene un post por su ID.
     """
+    from app.models.blog import BlogPost
     return db.query(BlogPost).filter(BlogPost.id == post_id).first()
 
 
-def get_post_by_slug(db: Session, slug: str) -> Optional[BlogPost]:
+def get_post_by_slug(db: Session, slug: str) -> Optional["BlogPost"]:
     """
     Obtiene un post por su slug.
     """
+    from app.models.blog import BlogPost
     return db.query(BlogPost).filter(BlogPost.slug == slug).first()
 
 
@@ -26,11 +30,12 @@ def get_posts(
     skip: int = 0, 
     limit: int = 100, 
     published_only: bool = False
-) -> List[BlogPost]:
+) -> List["BlogPost"]:
     """
     Obtiene una lista de posts con paginación.
     Si published_only es True, solo devuelve posts publicados.
     """
+    from app.models.blog import BlogPost, PostStatusEnum
     query = db.query(BlogPost)
     
     if published_only:
@@ -39,10 +44,11 @@ def get_posts(
     return query.order_by(desc(BlogPost.created_at)).offset(skip).limit(limit).all()
 
 
-def create_post(db: Session, post: PostCreate, author_id: int) -> BlogPost:
+def create_post(db: Session, post: PostCreate, author_id: int) -> "BlogPost":
     """
     Crea un nuevo post.
     """
+    from app.models.blog import BlogPost, PostStatusEnum
     db_post = BlogPost(
         title=post.title,
         slug=post.slug,
@@ -65,12 +71,13 @@ def create_post(db: Session, post: PostCreate, author_id: int) -> BlogPost:
 
 def update_post(
     db: Session, 
-    db_post: BlogPost, 
+    db_post: "BlogPost", 
     post_update: PostUpdate
-) -> BlogPost:
+) -> "BlogPost":
     """
     Actualiza un post existente.
     """
+    from app.models.blog import PostStatusEnum
     update_data = post_update.model_dump(exclude_unset=True)
     
     # Si se está cambiando el estado a publicado y no tenía published_at
@@ -90,7 +97,7 @@ def update_post(
     return db_post
 
 
-def delete_post(db: Session, db_post: BlogPost) -> BlogPost:
+def delete_post(db: Session, db_post: "BlogPost") -> "BlogPost":
     """
     Elimina un post.
     """
