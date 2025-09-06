@@ -1,0 +1,119 @@
+name: Deploy to Development Server
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Permite ejecutar manualmente
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup SSH key
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.DEV_SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H 34.134.14.202 >> ~/.ssh/known_hosts
+    
+    - name: Deploy to dev-server
+      run: |
+        ssh ajcortest@34.134.14.202 "
+          set -e
+          echo '🚀 Iniciando deployment automático desde GitHub...'
+          
+          # Crear directorio si no existe
+          sudo mkdir -p /srv/servicios/entersys-apis/content-management
+          cd /srv/servicios/entersys-apis/content-management
+          
+          # Limpiar y clonar
+          sudo rm -rf * .git* 2>/dev/null || true
+          sudo git clone https://github.com/EntersysMX/entersys-backend.git .
+          
+          # Crear .env
+          sudo tee .env > /dev/null << 'ENVEOF'
+POSTGRES_USER=entersys_user
+POSTGRES_PASSWORD=entersys_dev_pass_2025
+POSTGRES_SERVER=dev-entersys-postgres
+POSTGRES_DB=entersys_db
+POSTGRES_PORT=5432
+ENVEOF
+          
+          # Verificar PostgreSQL
+          if ! docker ps | grep -q 'dev-entersys-postgres'; then
+            echo '❌ PostgreSQL container no está corriendo'
+            exit 1
+          fi
+          
+          # Configurar base de datos
+          docker exec dev-entersys-postgres psql -U postgres -v ON_ERROR_STOP=1 << 'SQLEOF'
+DO \$\$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'entersys_db') THEN
+        CREATE DATABASE entersys_db;
+    END IF;
+    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'entersys_user') THEN
+        CREATE USER entersys_user WITH ENCRYPTED PASSWORD 'entersys_dev_pass_2025';
+    END IF;
+END\$\$;
+GRANT ALL PRIVILEGES ON DATABASE entersys_db TO entersys_user;
+\\c entersys_db
+GRANT ALL ON SCHEMA public TO entersys_user;
+SQLEOF
+          
+          # Crear redes
+          docker network create entersys_internal 2>/dev/null || true
+          
+          # Deploy
+          sudo docker-compose down --remove-orphans 2>/dev/null || true
+          sudo docker-compose up -d --build --force-recreate
+          
+          # Esperar y verificar
+          echo '⏳ Esperando 60 segundos para startup...'
+          sleep 60
+          
+          # Test interno
+          if docker exec entersys-content-api curl -f -s http://localhost:8000/api/v1/health > /dev/null; then
+            echo '✅ Health check interno exitoso'
+          else
+            echo '❌ Health check interno falló'
+            docker logs --tail 20 entersys-content-api
+            exit 1
+          fi
+          
+          # Test externo
+          sleep 30
+          if curl -f -s https://api.dev.entersys.mx/content/v1/health > /dev/null; then
+            echo '🎉 ¡Deployment exitoso! API disponible en https://api.dev.entersys.mx/content/'
+          else
+            echo '⚠️ Deployment completado, verificando acceso externo...'
+            curl -I https://api.dev.entersys.mx/content/v1/health || true
+          fi
+          
+          # Estado final
+          echo '📊 Estado final:'
+          sudo docker-compose ps
+          echo '✅ Deployment completado'
+        "
+    
+    - name: Verify deployment
+      run: |
+        echo "🧪 Verificando deployment..."
+        sleep 30
+        
+        # Test health endpoint
+        if curl -f -s https://api.dev.entersys.mx/content/v1/health; then
+          echo "✅ API funcionando correctamente"
+        else
+          echo "⚠️ API puede estar iniciando aún..."
+          curl -I https://api.dev.entersys.mx/content/v1/health || true
+        fi
+        
+        echo "🔗 URLs disponibles:"
+        echo "  • Health: https://api.dev.entersys.mx/content/v1/health"
+        echo "  • Docs: https://api.dev.entersys.mx/content/docs"
+        echo "  • Root: https://api.dev.entersys.mx/content/"
