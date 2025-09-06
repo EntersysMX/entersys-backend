@@ -193,12 +193,12 @@ echo "📁 FASE 2: CREANDO ESTRUCTURA DEL PROYECTO"
 echo "=========================================="
 
 cd /srv/servicios
+
+# Eliminar completamente el directorio y recrearlo
+echo "🧹 Limpiando deployment anterior..."
+rm -rf entersys-apis/content-management
 mkdir -p entersys-apis/content-management
 cd entersys-apis/content-management
-
-# Limpiar completamente el directorio
-echo "🧹 Limpiando deployment anterior..."
-rm -rf * .* 2>/dev/null || true
 
 echo "📥 Clonando código fuente..."
 git clone https://github.com/EntersysMX/entersys-backend.git . --quiet
