@@ -38,7 +38,7 @@ try {
     ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER "cd $PROJECT; $createUserScript"
 
     Write-Host "`n9. 🔑 Probando autenticación JWT..." -ForegroundColor Yellow
-    ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER "curl -s -X POST https://api.dev.entersys.mx/api/v1/auth/token -H 'Content-Type: application/x-www-form-urlencoded' -d 'username=admin@entersys.mx&password=admin123'"
+    ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER 'curl -s -X POST https://api.dev.entersys.mx/api/v1/auth/token -H "Content-Type: application/x-www-form-urlencoded" -d "username=admin@entersys.mx&password=admin123"'
 
     Write-Host "`n✅ ¡DESPLIEGUE COMPLETADO!" -ForegroundColor Green
     Write-Host "`n📋 RESUMEN:" -ForegroundColor Cyan
