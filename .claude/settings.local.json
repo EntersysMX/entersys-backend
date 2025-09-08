@@ -3,7 +3,9 @@
     "allow": [
       "Bash(git commit:*)",
       "Bash(powershell:*)",
-      "Bash(ssh:*)"
+      "Bash(ssh:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

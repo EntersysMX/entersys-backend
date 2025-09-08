@@ -42,3 +42,13 @@ def create_user(db: Session, email: str, password: str) -> "AdminUser":
     db.commit()
     db.refresh(db_user)
     return db_user
+
+
+def create_admin_user(db: Session, email: str, password: str):
+    hashed_password = get_password_hash(password)
+    from app.models.blog import AdminUser
+    db_user = AdminUser(email=email, hashed_password=hashed_password, is_active=True)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user

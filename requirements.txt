@@ -16,3 +16,4 @@ python-dotenv
 # Seguridad y Autenticación
 passlib[bcrypt]
 python-jose[cryptography]
+authlib
