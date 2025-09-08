@@ -2,7 +2,7 @@
 Write-Host "🚀 Iniciando despliegue automático de la API..." -ForegroundColor Green
 
 # Variables
-$KEY_PATH = "C:\Web_Entersys\entersys-backend\OPENSSH PRIVATE KEY.txt"
+$KEY_PATH = "C:\Web_Entersys\entersys-backend\Keyssh"
 $SERVER = "ajcortest@34.134.14.202" 
 $PROJECT = "/srv/servicios/entersys-apis/content-management"
 
