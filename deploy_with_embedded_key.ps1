@@ -1,52 +1,57 @@
-# Automated deployment script with embedded SSH key
-Write-Host "🚀 Iniciando despliegue automático con clave integrada..." -ForegroundColor Green
+# Automated deployment script - executes all deployment steps
+Write-Host "🚀 Iniciando despliegue automático de la API..." -ForegroundColor Green
 
 # Variables
+$KEY_PATH = "C:\Web_Entersys\entersys-backend\Keyssh"
 $SERVER = "ajcortest@34.134.14.202" 
 $PROJECT = "/srv/servicios/entersys-apis/content-management"
-$TEMP_KEY = "$env:TEMP\claude_deploy_key"
 
-# Usar archivo de clave existente
-Write-Host "`n📋 Usando clave SSH existente..." -ForegroundColor Cyan
-$KEY_PATH = "C:\Web_Entersys\entersys-backend\Keyssh"
+Write-Host "`n1. 📥 Actualizando código desde GitHub..." -ForegroundColor Yellow
+ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER "cd $PROJECT; git pull origin main"
 
-try {
-    Write-Host "`n1. 📥 Actualizando código desde GitHub..." -ForegroundColor Yellow
-    ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER "cd $PROJECT; git pull origin main"
+Write-Host "`n2. 🐳 Reconstruyendo contenedores..." -ForegroundColor Yellow  
+ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER "cd $PROJECT; docker compose down; docker compose up -d --build"
 
-    Write-Host "`n2. 🐳 Deteniendo contenedores..." -ForegroundColor Yellow
-    ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER "cd $PROJECT; docker compose down"
+Write-Host "`n3. ⏱️ Esperando inicio de servicios..." -ForegroundColor Yellow
+Start-Sleep -Seconds 15
 
-    Write-Host "`n3. 🔨 Reconstruyendo contenedores..." -ForegroundColor Yellow  
-    ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER "cd $PROJECT; docker compose up -d --build"
+Write-Host "`n4. 🧪 Probando health check local..." -ForegroundColor Yellow
+ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER "curl -s http://localhost:8000/api/v1/health"
 
-    Write-Host "`n4. ⏱️ Esperando inicio de servicios (15s)..." -ForegroundColor Yellow
-    Start-Sleep -Seconds 15
+Write-Host "`n5. 🌐 Probando health check público..." -ForegroundColor Yellow  
+ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER "curl -s https://api.dev.entersys.mx/api/v1/health"
 
-    Write-Host "`n5. 🧪 Probando health check local..." -ForegroundColor Yellow
-    ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER "curl -s http://localhost:8000/api/v1/health"
+Write-Host "`n6. 📝 Probando endpoint de posts..." -ForegroundColor Yellow
+ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER "curl -s https://api.dev.entersys.mx/api/v1/posts"
 
-    Write-Host "`n6. 🌐 Probando health check público..." -ForegroundColor Yellow
-    ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER "curl -s https://api.dev.entersys.mx/api/v1/health"
+Write-Host "`n7. 👤 Creando usuario administrador..." -ForegroundColor Yellow
+$createUserScript = @'
+docker compose exec -T api python -c "
+from app.db.session import SessionLocal
+from app.crud.crud_user import create_user, get_user_by_email
+db = SessionLocal()
+try:
+    existing = get_user_by_email(db, 'admin@entersys.mx')
+    if not existing:
+        user = create_user(db, 'admin@entersys.mx', 'admin123')
+        print(f'✅ Usuario admin creado: {user.email}')
+    else:
+        print(f'✅ Usuario admin ya existe: {existing.email}')
+finally:
+    db.close()
+"
+'@
 
-    Write-Host "`n7. 📝 Probando endpoint de posts..." -ForegroundColor Yellow
-    ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER "curl -s https://api.dev.entersys.mx/api/v1/posts"
+ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER "cd $PROJECT; $createUserScript"
 
-    Write-Host "`n8. 👤 Creando usuario administrador..." -ForegroundColor Yellow
-    $createUserScript = 'docker compose exec -T api python -c "from app.db.session import SessionLocal; from app.crud.crud_user import create_user, get_user_by_email; db = SessionLocal(); existing = get_user_by_email(db, ''admin@entersys.mx''); user = create_user(db, ''admin@entersys.mx'', ''admin123'') if not existing else existing; print(f''Usuario: {user.email}''); db.close()"'
+Write-Host "`n8. 🔑 Probando autenticación JWT..." -ForegroundColor Yellow
+ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER "curl -s -X POST https://api.dev.entersys.mx/api/v1/auth/token -H `"Content-Type: application/x-www-form-urlencoded`" -d `"username=admin@entersys.mx&password=admin123`""
 
-    ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER "cd $PROJECT; $createUserScript"
-
-    Write-Host "`n9. 🔑 Probando autenticación JWT..." -ForegroundColor Yellow
-    ssh -i $KEY_PATH -o StrictHostKeyChecking=no $SERVER 'curl -s -X POST https://api.dev.entersys.mx/api/v1/auth/token -H "Content-Type: application/x-www-form-urlencoded" -d "username=admin@entersys.mx&password=admin123"'
-
-    Write-Host "`n✅ ¡DESPLIEGUE COMPLETADO!" -ForegroundColor Green
-    Write-Host "`n📋 RESUMEN:" -ForegroundColor Cyan
-    Write-Host "   🔐 Usuario: admin@entersys.mx / admin123" -ForegroundColor White  
-    Write-Host "   🌐 Health: https://api.dev.entersys.mx/api/v1/health" -ForegroundColor White
-    Write-Host "   🔑 Auth:   https://api.dev.entersys.mx/api/v1/auth/token" -ForegroundColor White
-    Write-Host "   📝 Posts:  https://api.dev.entersys.mx/api/v1/posts" -ForegroundColor White
-
-} catch {
-    Write-Host "`n❌ Error durante el despliegue: $($_.Exception.Message)" -ForegroundColor Red
-}
+Write-Host "`n✅ ¡Despliegue automático completado!" -ForegroundColor Green
+Write-Host "`n📋 Resumen:" -ForegroundColor Cyan
+Write-Host "   - API desplegada con correcciones de importación circular" -ForegroundColor White
+Write-Host "   - Usuario admin: admin@entersys.mx / admin123" -ForegroundColor White  
+Write-Host "   - Endpoints disponibles:" -ForegroundColor White
+Write-Host "     * GET  https://api.dev.entersys.mx/api/v1/health" -ForegroundColor Gray
+Write-Host "     * POST https://api.dev.entersys.mx/api/v1/auth/token" -ForegroundColor Gray
+Write-Host "     * GET  https://api.dev.entersys.mx/api/v1/posts" -ForegroundColor Gray
