@@ -17,3 +17,10 @@ python-dotenv
 passlib[bcrypt]
 python-jose[cryptography]
 authlib
+
+# Analytics y HTTP Clients
+httpx
+pydantic[email]
+
+# Session Management
+starlette

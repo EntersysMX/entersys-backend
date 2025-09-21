@@ -5,7 +5,9 @@
       "Bash(powershell:*)",
       "Bash(ssh:*)",
       "Bash(git checkout:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(venv\\Scripts\\activate:*)",
+      "Bash(py -m pip install:*)"
     ],
     "deny": [],
     "ask": []
