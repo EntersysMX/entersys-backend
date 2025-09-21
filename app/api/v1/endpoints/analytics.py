@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, BackgroundTasks
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, EmailStr
 import httpx
@@ -18,7 +18,15 @@ class LeadCaptureSchema(BaseModel):
     source: str = "website_form"
 
 @router.post("/lead-capture")
-async def capture_lead(lead_data: LeadCaptureSchema, request: Request):
+async def capture_lead(lead_data: LeadCaptureSchema, request: Request, background_tasks: BackgroundTasks):
+    """
+    Capturar lead con tracking completo y sincronización CRM
+
+    **Flujo completo:**
+    1. Tracking inmediato en Matomo
+    2. Sincronización con Mautic CRM (background)
+    3. Respuesta rápida al cliente
+    """
     try:
         # Configuración directa de Matomo
         base_url = "https://analytics.entersys.mx"
@@ -58,6 +66,9 @@ async def capture_lead(lead_data: LeadCaptureSchema, request: Request):
             # Enviar conversión
             conversion_response = await client.get(f"{base_url}/matomo.php", params=conversion_params)
 
+        # *** NUEVO *** Sincronización con CRM en background
+        background_tasks.add_task(sync_lead_to_crm_background, lead_data.dict())
+
         return {
             "success": True,
             "message": "Lead captured and tracked successfully",
@@ -70,8 +81,40 @@ async def capture_lead(lead_data: LeadCaptureSchema, request: Request):
             "tracking": {
                 "event_status": event_response.status_code,
                 "conversion_status": conversion_response.status_code
-            }
+            },
+            "crm_sync": "scheduled_background"
         }
     except Exception as e:
         logger.error(f"Error capturing lead: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error capturing lead: {str(e)}")
+
+# *** NUEVO *** Background task para sincronización CRM
+async def sync_lead_to_crm_background(lead_data: dict):
+    """Sincronizar lead con Mautic CRM en background"""
+    try:
+        # Import dinámico para evitar dependencias circulares
+        from app.services.mautic_service import MauticService
+
+        mautic_service = MauticService()
+
+        # Verificar si contacto existe
+        existing_contact = await mautic_service.get_contact_by_email(lead_data['email'])
+
+        if existing_contact.get("found"):
+            # Actualizar score por re-engagement
+            await mautic_service.update_contact_score(
+                email=lead_data['email'],
+                score_delta=5,
+                action=f"form_resubmit_{lead_data['interest']}"
+            )
+            logger.info(f"CRM: Lead existente re-activado - {lead_data['email']}")
+        else:
+            # Crear nuevo contacto
+            result = await mautic_service.create_contact(lead_data)
+            if result.get("success"):
+                logger.info(f"CRM: Nuevo lead sincronizado - {lead_data['email']} -> ID {result['contact_id']}")
+            else:
+                logger.error(f"CRM: Error sincronizando lead - {result.get('error')}")
+
+    except Exception as e:
+        logger.error(f"Error en background sync CRM: {str(e)}")

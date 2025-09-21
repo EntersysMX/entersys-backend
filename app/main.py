@@ -38,3 +38,10 @@ try:
     app.include_router(analytics_router, prefix="/api/v1/analytics", tags=["Analytics"])
 except ImportError as e:
     print(f"Warning: Could not import analytics router: {e}")
+
+# Router de CRM - import con manejo de errores
+try:
+    from app.api.v1.endpoints.crm import router as crm_router
+    app.include_router(crm_router, prefix="/api/v1/crm", tags=["CRM"])
+except ImportError as e:
+    print(f"Warning: Could not import CRM router: {e}")

@@ -22,5 +22,11 @@ authlib
 httpx
 pydantic[email]
 
+# CRM Integration (NUEVO)
+httpx==0.25.0
+asyncio-mqtt==0.13.0
+celery==5.3.4
+redis==5.0.1
+
 # Session Management
 starlette
