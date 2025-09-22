@@ -16,7 +16,7 @@ class LeadSyncSchema(BaseModel):
     email: EmailStr
     company: Optional[str] = Field("", max_length=100)
     phone: Optional[str] = Field("", max_length=20)
-    interest: str = Field(..., pattern="^(general|worksys|expersys|demo|partnership)$")
+    interest: str = Field(..., pattern="^(general|worksys|expersys|demo|partnership|automation)$")
     message: Optional[str] = Field("", max_length=500)
     source: str = Field("website_form", max_length=50)
 

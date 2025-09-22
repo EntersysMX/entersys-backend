@@ -365,6 +365,7 @@ class MauticService:
             "worksys": 20,     # Interés específico en producto
             "expersys": 20,    # Interés específico en producto
             "partnership": 30, # Interés comercial alto
+            "automation": 18,  # Interés en automatización
             "general": 10      # Interés general
         }
 
