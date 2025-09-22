@@ -1,9 +1,8 @@
 import httpx
 import json
-import base64
 import logging
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -11,6 +10,8 @@ logger = logging.getLogger(__name__)
 class MauticService:
     """
     Servicio para integración con Mautic CRM
+    URL Base: https://crm.entersys.mx
+    Autenticación: OAuth 2.0 (client_credentials)
 
     **Funcionalidades principales:**
     - Crear/actualizar contactos
@@ -23,29 +24,97 @@ class MauticService:
     def __init__(self):
         # Configuración desde variables de entorno
         self.base_url = getattr(settings, 'MAUTIC_BASE_URL', 'https://crm.entersys.mx')
-        self.username = getattr(settings, 'MAUTIC_USERNAME', '')
-        self.password = getattr(settings, 'MAUTIC_PASSWORD', '')
+        self.client_id = getattr(settings, 'MAUTIC_CLIENT_ID', '')
+        self.client_secret = getattr(settings, 'MAUTIC_CLIENT_SECRET', '')
 
-        # Headers de autenticación básica
-        self.auth_header = self._create_auth_header()
+        # Variables para manejo de token OAuth2
+        self.access_token = None
+        self.token_expiry = None
 
-        self.default_headers = {
+        logger.info(f"MauticService inicializado con OAuth2 para: {self.base_url}")
+
+    async def _get_oauth_token(self) -> str:
+        """Obtener token OAuth2 válido, reutilizando el actual si no ha expirado"""
+        # Si ya tenemos un token válido, devolverlo
+        if self.access_token and self.token_expiry and datetime.now() < self.token_expiry:
+            return self.access_token
+
+        try:
+            if not self.client_id or not self.client_secret:
+                raise Exception("MAUTIC_CLIENT_ID y MAUTIC_CLIENT_SECRET deben estar configurados")
+
+            async with httpx.AsyncClient(timeout=30.0, verify=False) as client:
+                response = await client.post(
+                    f"{self.base_url}/oauth/v2/token",
+                    headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                    data={
+                        'grant_type': 'client_credentials',
+                        'client_id': self.client_id,
+                        'client_secret': self.client_secret
+                    }
+                )
+
+                response.raise_for_status()
+                token_data = response.json()
+
+                self.access_token = token_data['access_token']
+                # Expira en 1 hora menos 5 minutos de margen de seguridad
+                expires_in = token_data.get('expires_in', 3600)
+                self.token_expiry = datetime.now() + timedelta(seconds=expires_in - 300)
+
+                logger.info("OAuth2 token obtenido exitosamente")
+                return self.access_token
+
+        except Exception as e:
+            logger.error(f"Error obteniendo token OAuth2: {str(e)}")
+            # Limpiar token en caso de error
+            self.access_token = None
+            self.token_expiry = None
+            raise Exception(f"Error obteniendo token OAuth2: {str(e)}")
+
+    async def _make_authenticated_request(self, method: str, url: str, **kwargs) -> httpx.Response:
+        """Realizar petición HTTP con manejo automático de token OAuth2"""
+        token = await self._get_oauth_token()
+        headers = kwargs.get('headers', {})
+        headers.update({
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "Authorization": self.auth_header
-        }
+            "Authorization": f"Bearer {token}"
+        })
+        kwargs['headers'] = headers
 
-        logger.info(f"MauticService inicializado para: {self.base_url}")
+        async with httpx.AsyncClient(timeout=30.0, verify=False) as client:
+            if method.upper() == 'GET':
+                response = await client.get(url, **kwargs)
+            elif method.upper() == 'POST':
+                response = await client.post(url, **kwargs)
+            elif method.upper() == 'PUT':
+                response = await client.put(url, **kwargs)
+            elif method.upper() == 'PATCH':
+                response = await client.patch(url, **kwargs)
+            else:
+                raise ValueError(f"Método HTTP no soportado: {method}")
 
-    def _create_auth_header(self) -> str:
-        """Crear header de autenticación básica"""
-        if not self.username or not self.password:
-            logger.warning("Credenciales de Mautic no configuradas")
-            return ""
+            # Manejo de token expirado
+            if response.status_code == 401:
+                logger.warning("Token OAuth2 expirado, obteniendo nuevo token...")
+                # Limpiar token y obtener uno nuevo
+                self.access_token = None
+                self.token_expiry = None
+                token = await self._get_oauth_token()
+                headers['Authorization'] = f"Bearer {token}"
 
-        credentials = f"{self.username}:{self.password}"
-        encoded_credentials = base64.b64encode(credentials.encode()).decode()
-        return f"Basic {encoded_credentials}"
+                # Reintentar la petición
+                if method.upper() == 'GET':
+                    response = await client.get(url, **kwargs)
+                elif method.upper() == 'POST':
+                    response = await client.post(url, **kwargs)
+                elif method.upper() == 'PUT':
+                    response = await client.put(url, **kwargs)
+                elif method.upper() == 'PATCH':
+                    response = await client.patch(url, **kwargs)
+
+            return response
 
     async def create_contact(self, contact_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -62,42 +131,41 @@ class MauticService:
             # 1. Preparar payload para Mautic API
             mautic_payload = self._prepare_contact_payload(contact_data)
 
-            # 2. Crear contacto
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    f"{self.base_url}/api/contacts/new",
-                    headers=self.default_headers,
-                    json=mautic_payload
-                )
+            # 2. Crear contacto usando OAuth2
+            response = await self._make_authenticated_request(
+                'POST',
+                f"{self.base_url}/api/contacts/new",
+                json=mautic_payload
+            )
 
-                response.raise_for_status()
-                result = response.json()
+            response.raise_for_status()
+            result = response.json()
 
-                if 'contact' in result:
-                    contact_id = result['contact']['id']
+            if 'contact' in result:
+                contact_id = result['contact']['id']
 
-                    # 3. Asignar score inicial basado en interés
-                    initial_score = self._calculate_initial_score(contact_data.get('interest', 'general'))
+                # 3. Asignar score inicial basado en interés
+                initial_score = self._calculate_initial_score(contact_data.get('interest', 'general'))
 
-                    if initial_score > 0:
-                        await self._add_points_to_contact(contact_id, initial_score)
+                if initial_score > 0:
+                    await self._add_points_to_contact(contact_id, initial_score)
 
-                    # 4. Log exitoso
-                    logger.info(f"Contacto creado exitosamente: {contact_data.get('email')} -> ID {contact_id}")
+                # 4. Log exitoso
+                logger.info(f"Contacto creado exitosamente: {contact_data.get('email')} -> ID {contact_id}")
 
-                    return {
-                        "success": True,
-                        "contact_id": contact_id,
-                        "initial_score": initial_score,
-                        "action": "created"
-                    }
-                else:
-                    logger.error(f"Respuesta inesperada de Mautic: {result}")
-                    return {
-                        "success": False,
-                        "error": "Respuesta inesperada del CRM",
-                        "details": result
-                    }
+                return {
+                    "success": True,
+                    "contact_id": contact_id,
+                    "initial_score": initial_score,
+                    "action": "created"
+                }
+            else:
+                logger.error(f"Respuesta inesperada de Mautic: {result}")
+                return {
+                    "success": False,
+                    "error": "Respuesta inesperada del CRM",
+                    "details": result
+                }
 
         except httpx.HTTPStatusError as e:
             logger.error(f"Error HTTP creando contacto en Mautic: {e.response.status_code} - {e.response.text}")
@@ -116,36 +184,35 @@ class MauticService:
     async def get_contact_by_email(self, email: str) -> Dict[str, Any]:
         """Obtener contacto por email desde Mautic"""
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                # Buscar contacto por email
-                response = await client.get(
-                    f"{self.base_url}/api/contacts",
-                    headers=self.default_headers,
-                    params={
-                        "search": f"email:{email}",
-                        "limit": 1
-                    }
-                )
+            # Buscar contacto por email usando OAuth2
+            response = await self._make_authenticated_request(
+                'GET',
+                f"{self.base_url}/api/contacts",
+                params={
+                    "search": f"email:{email}",
+                    "limit": 1
+                }
+            )
 
-                response.raise_for_status()
-                result = response.json()
+            response.raise_for_status()
+            result = response.json()
 
-                if result.get('contacts') and len(result['contacts']) > 0:
-                    # Contacto encontrado
-                    contact = list(result['contacts'].values())[0]
+            if result.get('contacts') and len(result['contacts']) > 0:
+                # Contacto encontrado
+                contact = list(result['contacts'].values())[0]
 
-                    return {
-                        "success": True,
-                        "found": True,
-                        "contact": contact
-                    }
-                else:
-                    # Contacto no encontrado
-                    return {
-                        "success": True,
-                        "found": False,
-                        "contact": None
-                    }
+                return {
+                    "success": True,
+                    "found": True,
+                    "contact": contact
+                }
+            else:
+                # Contacto no encontrado
+                return {
+                    "success": True,
+                    "found": False,
+                    "contact": None
+                }
 
         except httpx.HTTPStatusError as e:
             logger.error(f"Error HTTP consultando contacto: {e.response.status_code}")
@@ -306,14 +373,14 @@ class MauticService:
     async def _add_points_to_contact(self, contact_id: int, points: int) -> bool:
         """Agregar puntos a contacto específico"""
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    f"{self.base_url}/api/contacts/{contact_id}/points/plus/{abs(points)}",
-                    headers=self.default_headers
-                )
+            # Agregar puntos usando OAuth2
+            response = await self._make_authenticated_request(
+                'POST',
+                f"{self.base_url}/api/contacts/{contact_id}/points/plus/{abs(points)}"
+            )
 
-                response.raise_for_status()
-                return True
+            response.raise_for_status()
+            return True
 
         except Exception as e:
             logger.error(f"Error agregando {points} puntos al contacto {contact_id}: {str(e)}")
