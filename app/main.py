@@ -1,5 +1,6 @@
 # app/main.py
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from app.api.v1.endpoints import health, auth
 from app.core.config import settings
@@ -8,6 +9,15 @@ app = FastAPI(
     title="Entersys.mx API",
     description="Backend para la gestión de contenido de Entersys.mx con Analytics",
     version="1.0.0"
+)
+
+# Configuración de CORS para permitir acceso desde cualquier origen
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Se necesita un middleware de sesión para que Authlib funcione

@@ -4,6 +4,7 @@ Test version of main.py for local development with SQLite
 """
 
 from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
 from sqlalchemy.ext.declarative import declarative_base
@@ -24,6 +25,15 @@ logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(title="Entersys.mx API - Test Version", version="1.0.0-test")
+
+# Configuración de CORS para permitir acceso desde cualquier origen
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Session middleware for OAuth
 app.add_middleware(SessionMiddleware, secret_key=test_settings.SECRET_KEY)
