@@ -21,6 +21,7 @@ services:
     env_file: .env
     ports:
       - "8000:8000"
+      - "8443:8000"
     networks:
       - entersys_net
       - traefik_net
