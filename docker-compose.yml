@@ -19,6 +19,8 @@ services:
     container_name: entersys-content-api
     restart: always
     env_file: .env
+    ports:
+      - "8000:8000"
     networks:
       - entersys_net
       - traefik_net
