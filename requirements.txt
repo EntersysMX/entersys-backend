@@ -30,3 +30,5 @@ redis==5.0.1
 
 # Session Management
 starlette
+itsdangerous
+python-multipart
