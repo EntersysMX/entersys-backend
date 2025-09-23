@@ -11,12 +11,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configuración de CORS para permitir acceso desde cualquier origen
+# Configuración de CORS para permitir acceso desde dominios específicos
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://dev.entersys.mx",
+        "https://entersys.mx",
+        "http://localhost:3000",
+        "http://localhost:5173"
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
