@@ -150,7 +150,9 @@ class MauticService:
                 if initial_score > 0:
                     await self._add_points_to_contact(contact_id, initial_score)
 
-                # 4. Log exitoso
+                # 4. TODO: Asociar con formulario en una versión futura
+
+                # 5. Log exitoso
                 logger.info(f"Contacto creado exitosamente: {contact_data.get('email')} -> ID {contact_id}")
 
                 return {
@@ -201,6 +203,16 @@ class MauticService:
                 # Contacto encontrado
                 contact = list(result['contacts'].values())[0]
 
+                # Log detallado para debugging
+                logger.info(f"Contacto encontrado en Mautic - Email: {email}")
+                logger.info(f"Campos disponibles en contacto: {list(contact.keys())}")
+                logger.info(f"Firstname: {contact.get('firstname')}")
+                logger.info(f"Lastname: {contact.get('lastname')}")
+                logger.info(f"Email: {contact.get('email')}")
+                logger.info(f"Company: {contact.get('company')}")
+                logger.info(f"Mobile: {contact.get('mobile')}")
+                logger.info(f"Phone: {contact.get('phone')}")
+
                 return {
                     "success": True,
                     "found": True,
@@ -208,6 +220,7 @@ class MauticService:
                 }
             else:
                 # Contacto no encontrado
+                logger.warning(f"Contacto no encontrado en Mautic: {email}")
                 return {
                     "success": True,
                     "found": False,
@@ -339,21 +352,23 @@ class MauticService:
         firstname = name_parts[0] if name_parts else ''
         lastname = name_parts[1] if len(name_parts) > 1 else ''
 
+        # Mautic requiere estructura específica con campos básicos primero
         payload = {
             "firstname": firstname,
             "lastname": lastname,
             "email": contact_data.get('email'),
             "company": contact_data.get('company', ''),
-            "phone": contact_data.get('phone', ''),
-            "lead_source": contact_data.get('source', 'website_form'),
-            "lead_interest": contact_data.get('interest', 'general'),
-            "message": contact_data.get('message', ''),
-            "date_added": datetime.now().isoformat(),
-            # Campos personalizados adicionales
+            "mobile": contact_data.get('phone', ''),  # Mautic usa 'mobile' en lugar de 'phone'
+            "website": contact_data.get('website', ''),
             "tags": [
                 f"source_{contact_data.get('source', 'unknown')}",
                 f"interest_{contact_data.get('interest', 'general')}"
-            ]
+            ],
+            # Campos personalizados con prefijo correcto para Mautic
+            "lead_source": contact_data.get('source', 'website_form'),
+            "lead_interest": contact_data.get('interest', 'general'),
+            "lead_message": contact_data.get('message', ''),
+            "ipAddress": "127.0.0.1"  # IP por defecto para evitar errores
         }
 
         return payload
@@ -385,4 +400,39 @@ class MauticService:
 
         except Exception as e:
             logger.error(f"Error agregando {points} puntos al contacto {contact_id}: {str(e)}")
+            return False
+
+    async def _associate_contact_with_form(self, contact_id: int, form_id: int, form_data: Dict[str, Any]) -> bool:
+        """Asociar contacto con formulario para que aparezca en estadísticas"""
+        try:
+            # Preparar datos de la submisión según los campos del formulario
+            submission_data = {
+                "firstname": form_data.get('firstname', ''),
+                "lastname": form_data.get('lastname', ''),
+                "email": form_data.get('email', ''),
+                "company": form_data.get('company', ''),
+                "phone": form_data.get('mobile', ''),
+                "message": form_data.get('lead_message', ''),
+                "formId": form_id,
+                "messagesent": 1,
+                "lead": contact_id
+            }
+
+            # Crear submisión de formulario usando el endpoint correcto
+            response = await self._make_authenticated_request(
+                'POST',
+                f"{self.base_url}/api/forms/{form_id}/submissions/new",
+                json=submission_data
+            )
+
+            if response.status_code in [200, 201, 202]:
+                logger.info(f"Contacto {contact_id} asociado con formulario {form_id}")
+                return True
+            else:
+                logger.warning(f"No se pudo asociar con formulario: {response.status_code} - {response.text}")
+                return False
+
+        except Exception as e:
+            logger.error(f"Error asociando contacto {contact_id} con formulario {form_id}: {str(e)}")
+            # No fallar si esto no funciona - el contacto ya fue creado
             return False
