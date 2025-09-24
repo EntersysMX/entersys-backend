@@ -32,3 +32,9 @@ redis==5.0.1
 starlette
 itsdangerous
 python-multipart
+
+# Smartsheet Integration
+smartsheet-python-sdk==3.0.3
+
+# Monitoring and Metrics
+prometheus-client==0.19.0

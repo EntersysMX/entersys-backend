@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = "placeholder_client_id"
     GOOGLE_CLIENT_SECRET: str = "placeholder_client_secret"
 
+    # --- Smartsheet Configuration ---
+    SMARTSHEET_ACCESS_TOKEN: str
+    SMARTSHEET_API_BASE_URL: str = "https://api.smartsheet.com/2.0"
+    MIDDLEWARE_API_KEY: str
+
     @computed_field
     @property
     def DATABASE_URI(self) -> str:

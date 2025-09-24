@@ -4,12 +4,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from app.api.v1.endpoints import health, auth
 from app.core.config import settings
+from app.core.logging_config import setup_logging
+import logging
+
+# Configurar logging al inicio de la aplicación
+setup_logging()
+logger = logging.getLogger("app")
 
 app = FastAPI(
     title="Entersys.mx API",
     description="Backend para la gestión de contenido de Entersys.mx con Analytics",
     version="1.0.0"
 )
+
+logger.info("Entersys.mx API starting up")
 
 # Configuración de CORS para permitir acceso desde dominios específicos
 app.add_middleware(
@@ -60,3 +68,10 @@ try:
     app.include_router(crm_router, prefix="/api/v1/crm", tags=["CRM"])
 except ImportError as e:
     print(f"Warning: Could not import CRM router: {e}")
+
+# Router de Smartsheet - import con manejo de errores
+try:
+    from app.api.v1.endpoints.smartsheet import router as smartsheet_router
+    app.include_router(smartsheet_router, prefix="/api/v1/smartsheet", tags=["Smartsheet"])
+except ImportError as e:
+    print(f"Warning: Could not import Smartsheet router: {e}")
