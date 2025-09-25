@@ -82,6 +82,13 @@ def read_root():
 app.include_router(health.router, prefix="/api/v1", tags=["Health Check"])
 app.include_router(auth.router, prefix="/api/v1", tags=["Authentication"])
 
+# Router de métricas - import con manejo de errores
+try:
+    from app.api.v1.endpoints.metrics import router as metrics_router
+    app.include_router(metrics_router, prefix="", tags=["Metrics"])
+except ImportError as e:
+    print(f"Warning: Could not import metrics router: {e}")
+
 # Router de analytics - import con manejo de errores
 try:
     from app.api.v1.endpoints.analytics import router as analytics_router

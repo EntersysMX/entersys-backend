@@ -1,0 +1,41 @@
+  # ═══════════════════════════════════════════════════════════════
+  # ENTERSYS CONTENT API - SMARTSHEET MIDDLEWARE
+  # ═══════════════════════════════════════════════════════════════
+
+  # Entersys Content API with Smartsheet middleware
+  - job_name: 'entersys-api'
+    static_configs:
+      - targets: ['entersys-content-api:8000']
+    scrape_interval: 30s
+    scrape_timeout: 15s
+    metrics_path: '/metrics'
+    relabel_configs:
+      - target_label: service
+        replacement: 'entersys-api'
+      - target_label: component
+        replacement: 'content-api'
+      - target_label: middleware
+        replacement: 'smartsheet'
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'entersys-content-api'
+
+  # Entersys API Health monitoring via blackbox
+  - job_name: 'entersys-api-health'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - https://api.dev.entersys.mx/api/v1/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: entersys-blackbox-exporter:9115
+      - target_label: service
+        replacement: 'entersys-api-health'
+      - target_label: component
+        replacement: 'api-health-check'

@@ -1,0 +1,15 @@
+# Entersys Content API - Metrics endpoint
+  - job_name: 'entersys-api'
+    static_configs:
+      - targets: ['entersys-content-api:8000']
+    scrape_interval: 30s
+    scrape_timeout: 15s
+    metrics_path: '/metrics'
+    relabel_configs:
+      - target_label: service
+        replacement: 'entersys-api'
+      - target_label: component
+        replacement: 'content-api'
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'entersys-content-api'
