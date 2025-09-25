@@ -1,0 +1,68 @@
+{
+  "datasource": {
+    "type": "loki",
+    "uid": "loki"
+  },
+  "fieldConfig": {
+    "defaults": {
+      "custom": {
+        "align": "auto",
+        "cellOptions": {
+          "type": "auto"
+        },
+        "inspect": false
+      },
+      "mappings": [],
+      "thresholds": {
+        "mode": "absolute",
+        "steps": [
+          {
+            "color": "green",
+            "value": null
+          },
+          {
+            "color": "red",
+            "value": 80
+          }
+        ]
+      }
+    },
+    "overrides": []
+  },
+  "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 8
+  },
+  "id": 200,
+  "options": {
+    "showTime": true,
+    "showLabels": false,
+    "showCommonLabels": false,
+    "wrapLogMessage": false,
+    "prettifyLogMessage": false,
+    "enableLogDetails": true,
+    "dedupStrategy": "none",
+    "sortOrder": "Descending"
+  },
+  "targets": [
+    {
+      "expr": "{container_name=\"entersys-content-api\"} |= \"ERROR\"",
+      "refId": "A",
+      "legendFormat": "API Errors"
+    },
+    {
+      "expr": "{container_name=\"entersys-content-api\"} |= \"INFO\"",
+      "refId": "B",
+      "legendFormat": "API Info"
+    },
+    {
+      "expr": "{container_name=\"entersys-content-api\"} |= \"smartsheet\"",
+      "refId": "C",
+      "legendFormat": "Smartsheet Operations"
+    }
+  ],
+  "title": "📋 Entersys API - Logs Monitor",
+  "type": "logs"
+}
