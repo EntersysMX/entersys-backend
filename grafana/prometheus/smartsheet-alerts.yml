@@ -1,0 +1,62 @@
+groups:
+  - name: smartsheet-api-alerts
+    rules:
+      - alert: SmartsheetAPIHighErrorRate
+        expr: (rate(api_requests_total{endpoint=~".*smartsheet.*",status=~"4..|5.."}[5m]) / rate(api_requests_total{endpoint=~".*smartsheet.*"}[5m])) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+          service: smartsheet-api
+        annotations:
+          summary: "High error rate detected in Smartsheet API"
+          description: "Smartsheet API error rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+
+      - alert: SmartsheetAPIHighLatency
+        expr: histogram_quantile(0.95, rate(api_request_duration_seconds_bucket{endpoint=~".*smartsheet.*"}[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: smartsheet-api
+        annotations:
+          summary: "High latency detected in Smartsheet API"
+          description: "Smartsheet API 95th percentile latency is {{ $value }}s over the last 5 minutes"
+
+      - alert: SmartsheetAPIDown
+        expr: up{job="entersys-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: smartsheet-api
+        annotations:
+          summary: "Smartsheet API service is down"
+          description: "Smartsheet API service has been down for more than 1 minute"
+
+      - alert: SmartsheetConnectionFailure
+        expr: increase(smartsheet_operations_total{status="failed"}[10m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+          service: smartsheet-api
+        annotations:
+          summary: "Multiple Smartsheet connection failures"
+          description: "{{ $value }} Smartsheet operations have failed in the last 10 minutes"
+
+      - alert: SmartsheetAPILowRequestRate
+        expr: rate(api_requests_total{endpoint=~".*smartsheet.*"}[5m]) < 0.01
+        for: 15m
+        labels:
+          severity: info
+          service: smartsheet-api
+        annotations:
+          summary: "Low request rate to Smartsheet API"
+          description: "Smartsheet API request rate is unusually low: {{ $value }} req/s"
+
+      - alert: SmartsheetAPIHighRequestRate
+        expr: rate(api_requests_total{endpoint=~".*smartsheet.*"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: smartsheet-api
+        annotations:
+          summary: "High request rate to Smartsheet API"
+          description: "Smartsheet API request rate is high: {{ $value }} req/s. Check for unusual usage patterns"

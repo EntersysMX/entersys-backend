@@ -13,8 +13,35 @@ logger = logging.getLogger("app")
 
 app = FastAPI(
     title="Entersys.mx API",
-    description="Backend para la gestión de contenido de Entersys.mx con Analytics",
-    version="1.0.0"
+    description="""
+    ## Backend API para Entersys.mx
+
+    **Servicios Disponibles:**
+    - 🏥 **Health Check**: Monitoreo de estado de servicios
+    - 🔐 **Authentication**: Autenticación OAuth con Google
+    - 📊 **Analytics**: Integración con Matomo para métricas
+    - 📧 **CRM**: Integración con Mautic para gestión de leads
+    - 🗂️ **Smartsheet Middleware**: API avanzada para consultas dinámicas a Smartsheet
+
+    **Smartsheet API Features:**
+    - Filtrado dinámico con 8 operadores (equals, contains, greater_than, etc.)
+    - Operadores lógicos (AND, OR) para consultas complejas
+    - Paginación y selección de campos
+    - Monitoreo con métricas Prometheus
+    - Logs estructurados para Six Sigma analytics
+
+    **Documentación adicional:** [API-DOCUMENTATION.md](https://github.com/EntersysMX/entersys-backend/blob/main/API-DOCUMENTATION.md)
+    """,
+    version="1.0.0",
+    contact={
+        "name": "Entersys Development Team",
+        "url": "https://entersys.mx",
+        "email": "armandocortes@entersys.mx"
+    },
+    license_info={
+        "name": "Proprietary License",
+        "url": "https://entersys.mx/license"
+    }
 )
 
 logger.info("Entersys.mx API starting up")

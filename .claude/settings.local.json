@@ -7,7 +7,9 @@
       "Bash(git checkout:*)",
       "Bash(git add:*)",
       "Bash(venv\\Scripts\\activate:*)",
-      "Bash(py -m pip install:*)"
+      "Bash(py -m pip install:*)",
+      "Bash(python:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
