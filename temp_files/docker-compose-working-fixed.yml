@@ -1,0 +1,33 @@
+version: '3.9'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dev-entersys-backend
+    restart: unless-stopped
+    
+    env_file:
+      - .env
+      
+    networks:
+      - traefik_network
+      - entersys_net
+      
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.entersys-backend-dev.rule=Host(`dev.scram2k.com`) && PathPrefix(`/backend/`)"
+      - "traefik.http.routers.entersys-backend-dev.entrypoints=websecure"
+      - "traefik.http.routers.entersys-backend-dev.tls.certresolver=letsencrypt"
+      - "traefik.http.services.entersys-backend-dev.loadbalancer.server.port=8000"
+      - "traefik.http.routers.entersys-backend-dev.middlewares=entersys-backend-stripprefix"
+      - "traefik.http.middlewares.entersys-backend-stripprefix.stripprefix.prefixes=/backend"
+
+networks:
+  traefik_network:
+    name: traefik
+    external: true
+  entersys_net:
+    name: content-management_entersys_net
+    external: true

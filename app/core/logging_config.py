@@ -283,39 +283,9 @@ def log_smartsheet_operation(logger: logging.Logger, operation: str,
 
 
 # Configurar métricas para Prometheus (opcional)
-try:
-    from prometheus_client import Counter, Histogram, Gauge
 
-    # Contadores de requests
-    API_REQUESTS_TOTAL = Counter(
-        'api_requests_total',
-        'Total number of API requests',
-        ['method', 'endpoint', 'status']
-    )
-
-    # Histograma de tiempo de respuesta
-    API_REQUEST_DURATION = Histogram(
-        'api_request_duration_seconds',
-        'Time spent processing API requests',
-        ['method', 'endpoint']
-    )
-
-    # Contador de operaciones de Smartsheet
-    SMARTSHEET_OPERATIONS_TOTAL = Counter(
-        'smartsheet_operations_total',
-        'Total number of Smartsheet operations',
-        ['operation', 'status']
-    )
-
-    # Gauge para conexiones activas a Smartsheet
-    SMARTSHEET_ACTIVE_CONNECTIONS = Gauge(
-        'smartsheet_active_connections',
-        'Number of active connections to Smartsheet API'
-    )
-
-except ImportError:
-    # Prometheus client no está disponible
-    API_REQUESTS_TOTAL = None
-    API_REQUEST_DURATION = None
-    SMARTSHEET_OPERATIONS_TOTAL = None
-    SMARTSHEET_ACTIVE_CONNECTIONS = None
+# Prometheus metrics disabled to prevent duplicates
+API_REQUESTS_TOTAL = None
+API_REQUEST_DURATION = None
+SMARTSHEET_OPERATIONS_TOTAL = None
+SMARTSHEET_ACTIVE_CONNECTIONS = None

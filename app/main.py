@@ -2,110 +2,84 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from app.api.v1.endpoints import health, auth
+from app.api.v1.endpoints import health, smartsheet, analytics, crm, metrics, six_sigma_metrics
 from app.core.config import settings
 from app.core.logging_config import setup_logging
+from middleware.request_logging import SixSigmaLoggingMiddleware
 import logging
 
-# Configurar logging al inicio de la aplicación
+# Configurar logging al inicio de la aplicacion
 setup_logging()
-logger = logging.getLogger("app")
+logger = logging.getLogger('app')
 
 app = FastAPI(
-    title="Entersys.mx API",
-    description="""
+    title='Entersys.mx API',
+    description='''
     ## Backend API para Entersys.mx
-
+    
     **Servicios Disponibles:**
-    - 🏥 **Health Check**: Monitoreo de estado de servicios
-    - 🔐 **Authentication**: Autenticación OAuth con Google
-    - 📊 **Analytics**: Integración con Matomo para métricas
-    - 📧 **CRM**: Integración con Mautic para gestión de leads
-    - 🗂️ **Smartsheet Middleware**: API avanzada para consultas dinámicas a Smartsheet
-
-    **Smartsheet API Features:**
-    - Filtrado dinámico con 8 operadores (equals, contains, greater_than, etc.)
-    - Operadores lógicos (AND, OR) para consultas complejas
-    - Paginación y selección de campos
-    - Monitoreo con métricas Prometheus
-    - Logs estructurados para Six Sigma analytics
-
-    **Documentación adicional:** [API-DOCUMENTATION.md](https://github.com/EntersysMX/entersys-backend/blob/main/API-DOCUMENTATION.md)
-    """,
-    version="1.0.0",
-    contact={
-        "name": "Entersys Development Team",
-        "url": "https://entersys.mx",
-        "email": "armandocortes@entersys.mx"
-    },
-    license_info={
-        "name": "Proprietary License",
-        "url": "https://entersys.mx/license"
-    }
+    - **Health Check**: Monitoreo de estado de servicios
+    - **Smartsheet**: Middleware para API de Smartsheet con filtrado avanzado
+    - **Analytics**: Integracion con Matomo para tracking
+    - **CRM**: Integracion con Mautic CRM  
+    - **Metrics**: Metricas de rendimiento y monitoreo
+    - **Six Sigma**: Metricas de calidad empresarial y compliance
+    
+    **Six Sigma Features:**
+    - Monitoreo 99.99966% disponibilidad
+    - Alertas proactivas de calidad
+    - Reportes ejecutivos de compliance
+    - Metricas en tiempo real
+    ''',
+    version='1.0.0',
+    openapi_url='/openapi.json',
+    docs_url='/docs',
+    redoc_url='/redoc'
 )
 
-logger.info("Entersys.mx API starting up")
+logger.info('Entersys.mx API starting up with Six Sigma monitoring')
 
-# Configuración de CORS para permitir acceso desde dominios específicos
+# Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://dev.entersys.mx",
-        "https://entersys.mx",
-        "http://localhost:3000",
-        "http://localhost:5173"
-    ],
+    allow_origins=['*'],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_methods=['*'],
+    allow_headers=['*'],
 )
 
-# Se necesita un middleware de sesión para que Authlib funcione
+# Configurar middleware de sesion (requerido para OAuth)
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
-# Registra el cliente OAuth de Google
-auth.oauth.register(
-    name='google',
-    client_id=settings.GOOGLE_CLIENT_ID,
-    client_secret=settings.GOOGLE_CLIENT_SECRET,
-    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-    client_kwargs={'scope': 'openid email profile'}
-)
+# Six Sigma logging middleware para capturar todas las requests
+app.add_middleware(SixSigmaLoggingMiddleware)
 
-@app.get("/", tags=["Root"])
-def read_root():
-    """
-    Endpoint raíz para verificar que la API está en línea.
-    """
-    return {"message": "Welcome to the Entersys.mx API - Analytics Integrated"}
+# Incluir rutas - Todos los endpoints disponibles
+app.include_router(health.router, prefix='/api/v1', tags=['Health Check'])
+app.include_router(smartsheet.router, prefix='/api/v1/smartsheet', tags=['Smartsheet'])
+app.include_router(analytics.router, prefix='/api/v1/analytics', tags=['Analytics'])
+app.include_router(crm.router, prefix='/api/v1/crm', tags=['CRM'])
+app.include_router(metrics.router, prefix='/api/v1/metrics', tags=['Metrics'])
+app.include_router(six_sigma_metrics.router, prefix='/api/v1', tags=['Six Sigma Quality'])
 
-app.include_router(health.router, prefix="/api/v1", tags=["Health Check"])
-app.include_router(auth.router, prefix="/api/v1", tags=["Authentication"])
+@app.get('/')
+async def root():
+    return {
+        'message': 'Bienvenido al Backend de Entersys.mx',
+        'status': 'operativo',
+        'version': '1.0.0',
+        'quality_level': 'six_sigma_enabled',
+        'docs': '/docs',
+        'available_services': [
+            'health', 'smartsheet', 'analytics', 'crm', 'metrics', 'six-sigma'
+        ],
+        'six_sigma_features': {
+            'real_time_metrics': '/api/v1/six-sigma/metrics/current',
+            'compliance_report': '/api/v1/six-sigma/compliance/report',
+            'active_alerts': '/api/v1/six-sigma/alerts/active'
+        }
+    }
 
-# Router de métricas - import con manejo de errores
-try:
-    from app.api.v1.endpoints.metrics import router as metrics_router
-    app.include_router(metrics_router, prefix="", tags=["Metrics"])
-except ImportError as e:
-    print(f"Warning: Could not import metrics router: {e}")
-
-# Router de analytics - import con manejo de errores
-try:
-    from app.api.v1.endpoints.analytics import router as analytics_router
-    app.include_router(analytics_router, prefix="/api/v1/analytics", tags=["Analytics"])
-except ImportError as e:
-    print(f"Warning: Could not import analytics router: {e}")
-
-# Router de CRM - import con manejo de errores
-try:
-    from app.api.v1.endpoints.crm import router as crm_router
-    app.include_router(crm_router, prefix="/api/v1/crm", tags=["CRM"])
-except ImportError as e:
-    print(f"Warning: Could not import CRM router: {e}")
-
-# Router de Smartsheet - import con manejo de errores
-try:
-    from app.api.v1.endpoints.smartsheet import router as smartsheet_router
-    app.include_router(smartsheet_router, prefix="/api/v1/smartsheet", tags=["Smartsheet"])
-except ImportError as e:
-    print(f"Warning: Could not import Smartsheet router: {e}")
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run(app, host='0.0.0.0', port=8000)
