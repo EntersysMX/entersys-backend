@@ -8,3 +8,10 @@ engine = create_engine(settings.DATABASE_URI)
 
 # Se crea una fábrica de sesiones que se usará para crear sesiones individuales.
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Funci�n generadora para obtener instancias de base de datos
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

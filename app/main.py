@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from app.api.v1.endpoints import health, smartsheet, analytics, crm, metrics, six_sigma_metrics
+from app.api.v1.endpoints import health, smartsheet, analytics, crm, metrics, six_sigma_metrics, auth, posts
 from app.core.config import settings
 from app.core.logging_config import setup_logging
 from middleware.request_logging import SixSigmaLoggingMiddleware
@@ -19,11 +19,19 @@ app = FastAPI(
     
     **Servicios Disponibles:**
     - **Health Check**: Monitoreo de estado de servicios
+    - **Authentication**: Sistema completo de autenticacion (JWT + OAuth Google)
+    - **Posts Management**: CRUD de posts y contenido del blog
     - **Smartsheet**: Middleware para API de Smartsheet con filtrado avanzado
     - **Analytics**: Integracion con Matomo para tracking
     - **CRM**: Integracion con Mautic CRM  
     - **Metrics**: Metricas de rendimiento y monitoreo
     - **Six Sigma**: Metricas de calidad empresarial y compliance
+    
+    **Authentication Features:**
+    - Login tradicional con email/password
+    - OAuth 2.0 con Google
+    - JWT tokens seguros
+    - Sesiones protegidas
     
     **Six Sigma Features:**
     - Monitoreo 99.99966% disponibilidad
@@ -32,17 +40,31 @@ app = FastAPI(
     - Metricas en tiempo real
     ''',
     version='1.0.0',
+    contact={
+        'name': 'Entersys Development Team',
+        'url': 'https://entersys.mx',
+        'email': 'armandocortes@entersys.mx'
+    },
+    license_info={
+        'name': 'Proprietary License',
+        'url': 'https://entersys.mx/license'
+    },
     openapi_url='/openapi.json',
     docs_url='/docs',
     redoc_url='/redoc'
 )
 
-logger.info('Entersys.mx API starting up with Six Sigma monitoring')
+logger.info('Entersys.mx API starting up with complete services suite')
 
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
+    allow_origins=[
+        'https://dev.entersys.mx',
+        'https://entersys.mx', 
+        'http://localhost:3000',
+        'http://localhost:5173'
+    ],
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
@@ -54,8 +76,19 @@ app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 # Six Sigma logging middleware para capturar todas las requests
 app.add_middleware(SixSigmaLoggingMiddleware)
 
+# Registrar OAuth Google para autenticacion
+auth.oauth.register(
+    name='google',
+    client_id=settings.GOOGLE_CLIENT_ID,
+    client_secret=settings.GOOGLE_CLIENT_SECRET,
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={'scope': 'openid email profile'}
+)
+
 # Incluir rutas - Todos los endpoints disponibles
 app.include_router(health.router, prefix='/api/v1', tags=['Health Check'])
+app.include_router(auth.router, prefix='/api/v1', tags=['Authentication'])
+app.include_router(posts.router, prefix='/api/v1/posts', tags=['Posts Management'])
 app.include_router(smartsheet.router, prefix='/api/v1/smartsheet', tags=['Smartsheet'])
 app.include_router(analytics.router, prefix='/api/v1/analytics', tags=['Analytics'])
 app.include_router(crm.router, prefix='/api/v1/crm', tags=['CRM'])
@@ -69,10 +102,16 @@ async def root():
         'status': 'operativo',
         'version': '1.0.0',
         'quality_level': 'six_sigma_enabled',
+        'authentication': 'jwt_oauth_enabled',
         'docs': '/docs',
         'available_services': [
-            'health', 'smartsheet', 'analytics', 'crm', 'metrics', 'six-sigma'
+            'health', 'auth', 'posts', 'smartsheet', 'analytics', 'crm', 'metrics', 'six-sigma'
         ],
+        'authentication_endpoints': {
+            'login_email': '/api/v1/auth/token',
+            'login_google': '/api/v1/login/google',
+            'google_callback': '/api/v1/auth/google'
+        },
         'six_sigma_features': {
             'real_time_metrics': '/api/v1/six-sigma/metrics/current',
             'compliance_report': '/api/v1/six-sigma/compliance/report',
