@@ -1,0 +1,83 @@
+{
+  "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+  },
+  "fieldConfig": {
+    "defaults": {
+      "color": {
+        "mode": "thresholds"
+      },
+      "mappings": [
+        {
+          "options": {
+            "0": {
+              "color": "red",
+              "index": 0,
+              "text": "DOWN"
+            },
+            "1": {
+              "color": "green",
+              "index": 1,
+              "text": "UP"
+            }
+          },
+          "type": "value"
+        }
+      ],
+      "thresholds": {
+        "mode": "absolute",
+        "steps": [
+          {
+            "color": "red",
+            "value": null
+          },
+          {
+            "color": "green",
+            "value": 1
+          }
+        ]
+      },
+      "unit": "none"
+    },
+    "overrides": []
+  },
+  "gridPos": {
+    "h": 4,
+    "w": 6,
+    "x": 0,
+    "y": 0
+  },
+  "id": 999,
+  "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "orientation": "horizontal",
+    "reduceOptions": {
+      "values": false,
+      "calcs": [
+        "lastNotNull"
+      ],
+      "fields": ""
+    },
+    "textMode": "value_and_name"
+  },
+  "pluginVersion": "8.0.0",
+  "targets": [
+    {
+      "expr": "up{container=\"entersys-content-api\"}",
+      "interval": "",
+      "legendFormat": "Entersys API",
+      "refId": "A"
+    },
+    {
+      "expr": "probe_success{instance=\"https://api.dev.entersys.mx/api/v1/health\"}",
+      "interval": "",
+      "legendFormat": "API Health",
+      "refId": "B"
+    }
+  ],
+  "title": "🔗 Entersys API - Smartsheet Service",
+  "type": "stat"
+}

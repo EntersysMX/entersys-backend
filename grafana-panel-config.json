@@ -1,0 +1,72 @@
+{
+  "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+  },
+  "fieldConfig": {
+    "defaults": {
+      "color": {
+        "mode": "thresholds"
+      },
+      "mappings": [],
+      "thresholds": {
+        "mode": "absolute",
+        "steps": [
+          {
+            "color": "green",
+            "value": null
+          },
+          {
+            "color": "red",
+            "value": 0.5
+          }
+        ]
+      },
+      "unit": "short"
+    },
+    "overrides": []
+  },
+  "gridPos": {
+    "h": 6,
+    "w": 8,
+    "x": 0,
+    "y": 0
+  },
+  "id": 100,
+  "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "orientation": "horizontal",
+    "reduceOptions": {
+      "values": false,
+      "calcs": [
+        "lastNotNull"
+      ],
+      "fields": ""
+    },
+    "textMode": "auto"
+  },
+  "pluginVersion": "8.0.0",
+  "targets": [
+    {
+      "expr": "probe_success{instance=\"https://api.dev.entersys.mx/api/v1/health\"}",
+      "interval": "",
+      "legendFormat": "API Health Status",
+      "refId": "A"
+    }
+  ],
+  "title": "Entersys API Health Status",
+  "type": "stat",
+  "transformations": [
+    {
+      "id": "calculateField",
+      "options": {
+        "mode": "reduceRow",
+        "reduce": {
+          "reducer": "lastNotNull"
+        }
+      }
+    }
+  ]
+}

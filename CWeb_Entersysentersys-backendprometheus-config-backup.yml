@@ -1,0 +1,195 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'entersys-production'
+    replica: 'prometheus-1'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - entersys-alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - "rules/*.yml"
+  - "alerts/*.yml"
+
+# Scrape configurations optimizadas para EnterSys
+scrape_configs:
+  # ═══════════════════════════════════════════════════════════════
+  # MONITORING STACK SELF-MONITORING
+  # ═══════════════════════════════════════════════════════════════
+
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['entersys-prometheus:9090']
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    metrics_path: '/metrics'
+
+  # Grafana monitoring
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['entersys-grafana:3000']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    metrics_path: '/metrics'
+
+  # AlertManager monitoring
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['entersys-alertmanager:9093']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    metrics_path: '/metrics'
+
+  # ═══════════════════════════════════════════════════════════════
+  # SYSTEM LEVEL MONITORING
+  # ═══════════════════════════════════════════════════════════════
+
+  # Node Exporter - Sistema operativo
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['entersys-node-exporter:9100']
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    metrics_path: '/metrics'
+
+  # cAdvisor - Contenedores Docker
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['entersys-cadvisor:8080']
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    metrics_path: '/metrics'
+
+  # ═══════════════════════════════════════════════════════════════
+  # ENTERSYS CORE APPLICATIONS
+  # ═══════════════════════════════════════════════════════════════
+
+  # NOTA: EnterSys Frontend y Content API no exponen métricas Prometheus
+  # Se monitorean mediante blackbox-exporter (disponibilidad externa)
+  # Los servicios web React/Node.js no tienen endpoints /metrics por defecto
+
+  # ═══════════════════════════════════════════════════════════════
+  # INFRASTRUCTURE SERVICES
+  # ═══════════════════════════════════════════════════════════════
+
+  # Traefik Reverse Proxy
+  - job_name: 'traefik'
+    static_configs:
+      - targets: ['traefik:8080']
+    scrape_interval: 30s
+    scrape_timeout: 15s
+    metrics_path: '/metrics'
+    relabel_configs:
+      - target_label: service
+        replacement: 'traefik'
+      - target_label: component
+        replacement: 'proxy'
+
+  # ═══════════════════════════════════════════════════════════════
+  # CONTENT MANAGEMENT & ANALYTICS
+  # ═══════════════════════════════════════════════════════════════
+
+  # NOTA: WikiJS, Matomo, Mautic no exponen métricas Prometheus nativas
+  # Se monitorean mediante blackbox-exporter (disponibilidad HTTP)
+  # Para métricas internas necesitarían configuración adicional de exporters
+
+  # ═══════════════════════════════════════════════════════════════
+  # AUTOMATION & WORKFLOWS
+  # ═══════════════════════════════════════════════════════════════
+
+  # NOTA: n8n y Watchtower no exponen métricas por defecto
+  # Se monitorean mediante blackbox-exporter (disponibilidad HTTP)
+  # Watchtower funciona en background sin interface HTTP
+
+  # ═══════════════════════════════════════════════════════════════
+  # DATABASE MONITORING
+  # ═══════════════════════════════════════════════════════════════
+
+  # NOTA: Bases de datos necesitan exporters adicionales para métricas
+  # PostgreSQL: requiere postgres_exporter
+  # MySQL: requiere mysqld_exporter
+  # Por ahora se monitorean mediante conexión TCP (blackbox-exporter)
+
+  # TODO: Implementar exporters de base de datos:
+  # - postgres_exporter para PostgreSQL metrics
+  # - mysqld_exporter para MySQL metrics
+
+  # ═══════════════════════════════════════════════════════════════
+  # ENDPOINT MONITORING (BLACKBOX)
+  # ═══════════════════════════════════════════════════════════════
+
+  # External Endpoints Health Check
+  - job_name: 'blackbox-http'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        # Production Websites
+        - https://dev.entersys.mx
+        - https://wiki.entersys.mx
+        - https://crm.entersys.mx
+        - https://marketing.smartflow.entersys.mx
+        - https://analytics.entersys.mx
+        # API Health Checks
+        - https://api.dev.entersys.mx/api/v1/health
+        # Internal Services - Monitored via external URLs
+        # matomo_app -> https://analytics.entersys.mx (already monitored)
+        # mautic_app -> https://crm.entersys.mx (already monitored)
+        - http://wikijs:3000
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: entersys-blackbox-exporter:9115
+      - target_label: service
+        replacement: 'endpoint-health'
+      - target_label: component
+        replacement: 'blackbox'
+
+  # SSL Certificate Monitoring
+  - job_name: 'blackbox-ssl'
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets:
+        - dev.entersys.mx:443
+        - wiki.entersys.mx:443
+        - crm.entersys.mx:443
+        - marketing.smartflow.entersys.mx:443
+        - analytics.entersys.mx:443
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: entersys-blackbox-exporter:9115
+      - target_label: service
+        replacement: 'ssl-monitoring'
+      - target_label: component
+        replacement: 'certificates'
+
+  # ═══════════════════════════════════════════════════════════════
+  # CUSTOM EXPORTERS
+  # ═══════════════════════════════════════════════════════════════
+
+  # NOTA: Custom exporter no existe actualmente
+  # Eliminar para evitar alertas falsas
+  # Agregar cuando se implementen exporters personalizados
+
+# ═══════════════════════════════════════════════════════════════
+# RECORDING RULES PARA OPTIMIZACIÓN
+# ═══════════════════════════════════════════════════════════════
+# Las reglas de grabación se definen en archivos separados bajo rules/
