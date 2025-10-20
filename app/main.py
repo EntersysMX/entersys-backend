@@ -60,8 +60,8 @@ logger.info('Entersys.mx API starting up with complete services suite')
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        'https://dev.entersys.mx',
-        'https://entersys.mx', 
+        'https://entersys.mx',
+        'https://admin.entersys.mx',
         'http://localhost:3000',
         'http://localhost:5173'
     ],
