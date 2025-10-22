@@ -33,6 +33,10 @@ class BlogPost(Base):
         SAEnum(PostStatusEnum, name='post_status_enum', create_type=False),
         nullable=False, server_default=PostStatusEnum.draft.value
     )
+    category = Column(String(50), server_default='Tecnología')
+    excerpt = Column(Text)
+    image_url = Column(String(500))
+    read_time = Column(String(20))
     published_at = Column(TIMESTAMP(timezone=True))
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())

@@ -13,6 +13,10 @@ class PostBase(BaseModel):
     slug: str
     content: Optional[str] = None
     status: PostStatusEnum = PostStatusEnum.draft
+    category: Optional[str] = 'Tecnología'
+    excerpt: Optional[str] = None
+    image_url: Optional[str] = None
+    read_time: Optional[str] = None
     meta_description: Optional[str] = None
     faq_json: Optional[dict] = None
 
@@ -32,6 +36,10 @@ class PostUpdate(BaseModel):
     slug: Optional[str] = None
     content: Optional[str] = None
     status: Optional[PostStatusEnum] = None
+    category: Optional[str] = None
+    excerpt: Optional[str] = None
+    image_url: Optional[str] = None
+    read_time: Optional[str] = None
     meta_description: Optional[str] = None
     faq_json: Optional[dict] = None
 

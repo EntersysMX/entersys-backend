@@ -55,14 +55,18 @@ def create_post(db: Session, post: PostCreate, author_id: int) -> "BlogPost":
         content=post.content,
         author_id=author_id,
         status=post.status,
+        category=post.category,
+        excerpt=post.excerpt,
+        image_url=post.image_url,
+        read_time=post.read_time,
         meta_description=post.meta_description,
         faq_json=post.faq_json
     )
-    
+
     # Si el post se está creando como publicado, establecer published_at
     if post.status == PostStatusEnum.published:
         db_post.published_at = datetime.now(timezone.utc)
-    
+
     db.add(db_post)
     db.commit()
     db.refresh(db_post)
