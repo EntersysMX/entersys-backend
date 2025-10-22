@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from datetime import datetime
+from html import escape
 
 from app.crud import crud_post
 from app.db.session import get_db
@@ -146,7 +147,7 @@ def get_rss_feed(db: Session = Depends(get_db)):
             rss_xml += f'      <pubDate>{pub_date.strftime("%a, %d %b %Y %H:%M:%S GMT")}</pubDate>\n'
 
         if post.image_url:
-            rss_xml += '      <enclosure url="{}" type="image/jpeg"/>\n'.format(post.image_url)
+            rss_xml += '      <enclosure url="{}" type="image/jpeg"/>\n'.format(escape(post.image_url))
 
         rss_xml += '    </item>\n'
 

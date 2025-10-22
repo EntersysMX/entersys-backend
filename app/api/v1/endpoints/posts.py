@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from datetime import datetime
+from html import escape
 
 from app.core.deps import get_current_user
 from app.crud import crud_post
@@ -57,7 +58,7 @@ def generate_sitemap(db: Session = Depends(get_db)):
     # Agregar cada post
     for post in posts:
         sitemap_xml += '  <url>\n'
-        sitemap_xml += f'    <loc>{base_url}/blog/{post.slug}</loc>\n'
+        sitemap_xml += f'    <loc>{escape(base_url)}/blog/{escape(post.slug)}</loc>\n'
 
         # Usar updated_at si existe, sino published_at, sino created_at
         last_mod = post.updated_at or post.published_at or post.created_at
@@ -74,9 +75,9 @@ def generate_sitemap(db: Session = Depends(get_db)):
         # Agregar imagen si existe
         if post.image_url:
             sitemap_xml += '    <image:image>\n'
-            sitemap_xml += f'      <image:loc>{post.image_url}</image:loc>\n'
+            sitemap_xml += f'      <image:loc>{escape(post.image_url)}</image:loc>\n'
             if post.title:
-                sitemap_xml += f'      <image:title>{post.title}</image:title>\n'
+                sitemap_xml += f'      <image:title>{escape(post.title)}</image:title>\n'
             sitemap_xml += '    </image:image>\n'
 
         sitemap_xml += '  </url>\n'
