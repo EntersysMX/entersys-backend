@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from datetime import datetime
-from html import escape
+import xml.etree.ElementTree as ET
 
 from app.core.deps import get_current_user
 from app.crud import crud_post
@@ -41,24 +41,26 @@ def generate_sitemap(db: Session = Depends(get_db)):
     # Base URL del sitio
     base_url = "https://www.entersys.mx"
 
-    # Generar XML del sitemap
-    sitemap_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
-    sitemap_xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n'
-    sitemap_xml += '        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"\n'
-    sitemap_xml += '        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n'
+    # Crear elemento raíz con namespaces
+    ET.register_namespace('', 'http://www.sitemaps.org/schemas/sitemap/0.9')
+    ET.register_namespace('image', 'http://www.google.com/schemas/sitemap-image/1.1')
+
+    urlset = ET.Element('urlset', {
+        'xmlns': 'http://www.sitemaps.org/schemas/sitemap/0.9',
+        'xmlns:image': 'http://www.google.com/schemas/sitemap-image/1.1'
+    })
 
     # Agregar página principal del blog
-    sitemap_xml += '  <url>\n'
-    sitemap_xml += f'    <loc>{base_url}/blog</loc>\n'
-    sitemap_xml += f'    <lastmod>{datetime.now().strftime("%Y-%m-%d")}</lastmod>\n'
-    sitemap_xml += '    <changefreq>daily</changefreq>\n'
-    sitemap_xml += '    <priority>1.0</priority>\n'
-    sitemap_xml += '  </url>\n'
+    url_blog = ET.SubElement(urlset, 'url')
+    ET.SubElement(url_blog, 'loc').text = f'{base_url}/blog'
+    ET.SubElement(url_blog, 'lastmod').text = datetime.now().strftime("%Y-%m-%d")
+    ET.SubElement(url_blog, 'changefreq').text = 'daily'
+    ET.SubElement(url_blog, 'priority').text = '1.0'
 
     # Agregar cada post
     for post in posts:
-        sitemap_xml += '  <url>\n'
-        sitemap_xml += f'    <loc>{escape(base_url)}/blog/{escape(post.slug)}</loc>\n'
+        url_elem = ET.SubElement(urlset, 'url')
+        ET.SubElement(url_elem, 'loc').text = f'{base_url}/blog/{post.slug}'
 
         # Usar updated_at si existe, sino published_at, sino created_at
         last_mod = post.updated_at or post.published_at or post.created_at
@@ -67,22 +69,21 @@ def generate_sitemap(db: Session = Depends(get_db)):
                 last_mod_str = last_mod.split('T')[0]
             else:
                 last_mod_str = last_mod.strftime("%Y-%m-%d")
-            sitemap_xml += f'    <lastmod>{last_mod_str}</lastmod>\n'
+            ET.SubElement(url_elem, 'lastmod').text = last_mod_str
 
-        sitemap_xml += '    <changefreq>weekly</changefreq>\n'
-        sitemap_xml += '    <priority>0.8</priority>\n'
+        ET.SubElement(url_elem, 'changefreq').text = 'weekly'
+        ET.SubElement(url_elem, 'priority').text = '0.8'
 
         # Agregar imagen si existe
         if post.image_url:
-            sitemap_xml += '    <image:image>\n'
-            sitemap_xml += f'      <image:loc>{escape(post.image_url)}</image:loc>\n'
+            image_elem = ET.SubElement(url_elem, '{http://www.google.com/schemas/sitemap-image/1.1}image')
+            ET.SubElement(image_elem, '{http://www.google.com/schemas/sitemap-image/1.1}loc').text = post.image_url
             if post.title:
-                sitemap_xml += f'      <image:title>{escape(post.title)}</image:title>\n'
-            sitemap_xml += '    </image:image>\n'
+                ET.SubElement(image_elem, '{http://www.google.com/schemas/sitemap-image/1.1}title').text = post.title
 
-        sitemap_xml += '  </url>\n'
-
-    sitemap_xml += '</urlset>'
+    # Convertir a string XML
+    xml_str = ET.tostring(urlset, encoding='utf-8', method='xml')
+    sitemap_xml = b'<?xml version="1.0" encoding="UTF-8"?>\n' + xml_str
 
     return Response(
         content=sitemap_xml,
