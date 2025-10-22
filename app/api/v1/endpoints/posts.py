@@ -29,6 +29,70 @@ def read_posts(
     return posts
 
 
+@router.get("/sitemap.xml", response_class=Response)
+def generate_sitemap(db: Session = Depends(get_db)):
+    """
+    Genera el sitemap.xml para los posts del blog.
+    Este endpoint está disponible públicamente para search engines.
+    """
+    posts = crud_post.get_posts(db=db, skip=0, limit=1000, published_only=True)
+
+    # Base URL del sitio
+    base_url = "https://www.entersys.mx"
+
+    # Generar XML del sitemap
+    sitemap_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    sitemap_xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n'
+    sitemap_xml += '        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"\n'
+    sitemap_xml += '        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n'
+
+    # Agregar página principal del blog
+    sitemap_xml += '  <url>\n'
+    sitemap_xml += f'    <loc>{base_url}/blog</loc>\n'
+    sitemap_xml += f'    <lastmod>{datetime.now().strftime("%Y-%m-%d")}</lastmod>\n'
+    sitemap_xml += '    <changefreq>daily</changefreq>\n'
+    sitemap_xml += '    <priority>1.0</priority>\n'
+    sitemap_xml += '  </url>\n'
+
+    # Agregar cada post
+    for post in posts:
+        sitemap_xml += '  <url>\n'
+        sitemap_xml += f'    <loc>{base_url}/blog/{post.slug}</loc>\n'
+
+        # Usar updated_at si existe, sino published_at, sino created_at
+        last_mod = post.updated_at or post.published_at or post.created_at
+        if last_mod:
+            if isinstance(last_mod, str):
+                last_mod_str = last_mod.split('T')[0]
+            else:
+                last_mod_str = last_mod.strftime("%Y-%m-%d")
+            sitemap_xml += f'    <lastmod>{last_mod_str}</lastmod>\n'
+
+        sitemap_xml += '    <changefreq>weekly</changefreq>\n'
+        sitemap_xml += '    <priority>0.8</priority>\n'
+
+        # Agregar imagen si existe
+        if post.image_url:
+            sitemap_xml += '    <image:image>\n'
+            sitemap_xml += f'      <image:loc>{post.image_url}</image:loc>\n'
+            if post.title:
+                sitemap_xml += f'      <image:title>{post.title}</image:title>\n'
+            sitemap_xml += '    </image:image>\n'
+
+        sitemap_xml += '  </url>\n'
+
+    sitemap_xml += '</urlset>'
+
+    return Response(
+        content=sitemap_xml,
+        media_type="application/xml",
+        headers={
+            "Content-Type": "application/xml; charset=utf-8",
+            "Cache-Control": "public, max-age=3600"
+        }
+    )
+
+
 @router.get("/{slug}", response_model=Post)
 def read_post_by_slug(
     slug: str,
@@ -40,7 +104,7 @@ def read_post_by_slug(
     post = crud_post.get_post_by_slug(db=db, slug=slug)
     if not post:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Post not found"
         )
     return post
@@ -111,67 +175,3 @@ def delete_post(
 
     crud_post.delete_post(db=db, db_post=post)
     return {"message": "Post deleted successfully"}
-
-
-@router.get("/sitemap.xml", response_class=Response)
-def generate_sitemap(db: Session = Depends(get_db)):
-    """
-    Genera el sitemap.xml para los posts del blog.
-    Este endpoint está disponible públicamente para search engines.
-    """
-    posts = crud_post.get_posts(db=db, skip=0, limit=1000, published_only=True)
-
-    # Base URL del sitio
-    base_url = "https://www.entersys.mx"
-
-    # Generar XML del sitemap
-    sitemap_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
-    sitemap_xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n'
-    sitemap_xml += '        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"\n'
-    sitemap_xml += '        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n'
-
-    # Agregar página principal del blog
-    sitemap_xml += '  <url>\n'
-    sitemap_xml += f'    <loc>{base_url}/blog</loc>\n'
-    sitemap_xml += f'    <lastmod>{datetime.now().strftime("%Y-%m-%d")}</lastmod>\n'
-    sitemap_xml += '    <changefreq>daily</changefreq>\n'
-    sitemap_xml += '    <priority>1.0</priority>\n'
-    sitemap_xml += '  </url>\n'
-
-    # Agregar cada post
-    for post in posts:
-        sitemap_xml += '  <url>\n'
-        sitemap_xml += f'    <loc>{base_url}/blog/{post.slug}</loc>\n'
-
-        # Usar updated_at si existe, sino published_at, sino created_at
-        last_mod = post.updated_at or post.published_at or post.created_at
-        if last_mod:
-            if isinstance(last_mod, str):
-                last_mod_str = last_mod.split('T')[0]
-            else:
-                last_mod_str = last_mod.strftime("%Y-%m-%d")
-            sitemap_xml += f'    <lastmod>{last_mod_str}</lastmod>\n'
-
-        sitemap_xml += '    <changefreq>weekly</changefreq>\n'
-        sitemap_xml += '    <priority>0.8</priority>\n'
-
-        # Agregar imagen si existe
-        if post.image_url:
-            sitemap_xml += '    <image:image>\n'
-            sitemap_xml += f'      <image:loc>{post.image_url}</image:loc>\n'
-            if post.title:
-                sitemap_xml += f'      <image:title>{post.title}</image:title>\n'
-            sitemap_xml += '    </image:image>\n'
-
-        sitemap_xml += '  </url>\n'
-
-    sitemap_xml += '</urlset>'
-
-    return Response(
-        content=sitemap_xml,
-        media_type="application/xml",
-        headers={
-            "Content-Type": "application/xml; charset=utf-8",
-            "Cache-Control": "public, max-age=3600"
-        }
-    )
