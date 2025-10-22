@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from app.api.v1.endpoints import health, smartsheet, analytics, crm, metrics, six_sigma_metrics, auth, posts
+from app.api.v1.endpoints import health, smartsheet, analytics, crm, metrics, six_sigma_metrics, auth, posts, seo
 from app.core.config import settings
 from app.core.logging_config import setup_logging
 from middleware.request_logging import SixSigmaLoggingMiddleware
@@ -90,6 +90,7 @@ auth.oauth.register(
 app.include_router(health.router, prefix='/api/v1', tags=['Health Check'])
 app.include_router(auth.router, prefix='/api/v1', tags=['Authentication'])
 app.include_router(posts.router, prefix='/api/v1/posts', tags=['Posts Management'])
+app.include_router(seo.router, prefix='/api/v1/seo', tags=['SEO & Feeds'])
 app.include_router(smartsheet.router, prefix='/api/v1/smartsheet', tags=['Smartsheet'])
 app.include_router(analytics.router, prefix='/api/v1/analytics', tags=['Analytics'])
 app.include_router(crm.router, prefix='/api/v1/crm', tags=['CRM'])
