@@ -1,7 +1,8 @@
 # app/main.py
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from app.api.v1.endpoints import health, smartsheet, analytics, crm, metrics, six_sigma_metrics, auth, posts, seo, onboarding
 from app.core.config import settings
 from app.core.logging_config import setup_logging
@@ -122,6 +123,14 @@ async def root():
             'active_alerts': '/api/v1/six-sigma/alerts/active'
         }
     }
+
+@app.get('/metrics', include_in_schema=False)
+async def prometheus_metrics():
+    """Endpoint de metricas para Prometheus"""
+    return Response(
+        generate_latest(),
+        media_type=CONTENT_TYPE_LATEST
+    )
 
 if __name__ == '__main__':
     import uvicorn
