@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from app.api.v1.endpoints import health, smartsheet, analytics, crm, metrics, six_sigma_metrics, auth, posts, seo
+from app.api.v1.endpoints import health, smartsheet, analytics, crm, metrics, six_sigma_metrics, auth, posts, seo, onboarding
 from app.core.config import settings
 from app.core.logging_config import setup_logging
 from middleware.request_logging import SixSigmaLoggingMiddleware
@@ -26,6 +26,7 @@ app = FastAPI(
     - **CRM**: Integracion con Mautic CRM  
     - **Metrics**: Metricas de rendimiento y monitoreo
     - **Six Sigma**: Metricas de calidad empresarial y compliance
+    - **Onboarding**: Sistema de validacion QR para certificaciones de seguridad
     
     **Authentication Features:**
     - Login tradicional con email/password
@@ -96,6 +97,7 @@ app.include_router(analytics.router, prefix='/api/v1/analytics', tags=['Analytic
 app.include_router(crm.router, prefix='/api/v1/crm', tags=['CRM'])
 app.include_router(metrics.router, prefix='/api/v1/metrics', tags=['Metrics'])
 app.include_router(six_sigma_metrics.router, prefix='/api/v1', tags=['Six Sigma Quality'])
+app.include_router(onboarding.router, prefix='/api/v1/onboarding', tags=['Onboarding Validation'])
 
 @app.get('/')
 async def root():

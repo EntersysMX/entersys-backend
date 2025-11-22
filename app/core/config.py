@@ -36,6 +36,16 @@ class Settings(BaseSettings):
     SMARTSHEET_ACCESS_TOKEN: str
     SMARTSHEET_API_BASE_URL: str = "https://api.smartsheet.com/2.0"
     MIDDLEWARE_API_KEY: str
+    SHEET_ID: int = 7060277951418244  # ID de la hoja de Smartsheet para onboarding
+
+    # --- Email/SMTP Settings ---
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = "armando.cortes@entersys.mx"
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "armando.cortes@entersys.mx"
+    SMTP_FROM_NAME: str = "Entersys Admin"
+    FRONTEND_URL: str = "https://admin.entersys.mx"
 
     @computed_field
     @property
