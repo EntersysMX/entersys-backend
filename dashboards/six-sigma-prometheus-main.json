@@ -1,0 +1,146 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Six Sigma Analytics - Prometheus",
+    "tags": ["six-sigma", "prometheus", "entersys"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "System Availability",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up",
+            "legendFormat": "Service Status"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 0.95},
+                {"color": "green", "value": 0.9999}
+              ]
+            },
+            "unit": "percentunit",
+            "decimals": 5
+          }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        }
+      },
+      {
+        "id": 2,
+        "title": "HTTP Request Rate",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total[5m])",
+            "legendFormat": "Requests/sec"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 6, "y": 0},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Response Time P95",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "P95 Response Time"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 1.0},
+                {"color": "red", "value": 3.0}
+              ]
+            },
+            "unit": "s",
+            "decimals": 3,
+            "max": 5
+          }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        }
+      },
+      {
+        "id": 4,
+        "title": "Six Sigma Compliance Score",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "((sum(rate(http_requests_total{code!~\"5..\"}[5m])) / sum(rate(http_requests_total[5m]))) * 100)",
+            "legendFormat": "Success Rate %"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 99.0},
+                {"color": "green", "value": 99.99966}
+              ]
+            },
+            "unit": "percent",
+            "decimals": 5
+          }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        }
+      },
+      {
+        "id": 5,
+        "title": "Error Rate (PPM)",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "((sum(rate(http_requests_total{code=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m]))) * 1000000)",
+            "legendFormat": "Errors Per Million"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 233},
+                {"color": "red", "value": 3.4}
+              ]
+            },
+            "unit": "short",
+            "decimals": 1,
+            "max": 1000
+          }
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        }
+      }
+    ],
+    "time": {"from": "now-1h", "to": "now"},
+    "refresh": "30s"
+  }
+}

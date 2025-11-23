@@ -1,0 +1,511 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Six Sigma Executive Dashboard",
+    "tags": [
+      "six-sigma",
+      "executive",
+      "kpi",
+      "business",
+      "entersys"
+    ],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "\ud83c\udfaf Six Sigma Score",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "(\n  sum(rate({logger=\"six_sigma.requests\"} | json | quality_level=\"six_sigma\" [5m])) / \n  sum(rate({logger=\"six_sigma.requests\"} [5m])) * 100\n)",
+            "legendFormat": "Six Sigma Achievement"
+          }
+        ],
+        "gridPos": {
+          "h": 10,
+          "w": 8,
+          "x": 0,
+          "y": 0
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 90
+                },
+                {
+                  "color": "green",
+                  "value": 99.99966
+                }
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "decimals": 5
+          }
+        },
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        }
+      },
+      {
+        "id": 2,
+        "title": "\ud83d\udcbc Business Impact KPIs",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "{logger=\"six_sigma.requests\"} | json | line_format \"{{.service}} {{.sla_compliant}} {{.performance_score}} {{.duration_ms}}\"",
+            "legendFormat": ""
+          }
+        ],
+        "gridPos": {
+          "h": 10,
+          "w": 16,
+          "x": 8,
+          "y": 0
+        },
+        "transformations": [
+          {
+            "id": "groupBy",
+            "options": {
+              "fields": {
+                "service": {
+                  "aggregations": [
+                    "distinctCount"
+                  ],
+                  "operation": "groupby"
+                },
+                "sla_compliant": {
+                  "aggregations": [
+                    "mean"
+                  ],
+                  "operation": "aggregate"
+                },
+                "performance_score": {
+                  "aggregations": [
+                    "mean"
+                  ],
+                  "operation": "aggregate"
+                },
+                "duration_ms": {
+                  "aggregations": [
+                    "mean"
+                  ],
+                  "operation": "aggregate"
+                }
+              }
+            }
+          },
+          {
+            "id": "organize",
+            "options": {
+              "renameByName": {
+                "service": "Service",
+                "sla_compliant (mean)": "SLA Compliance %",
+                "performance_score (mean)": "Avg Performance Score",
+                "duration_ms (mean)": "Avg Response Time (ms)"
+              }
+            }
+          }
+        ],
+        "options": {
+          "sortBy": [
+            {
+              "displayName": "Avg Performance Score",
+              "desc": true
+            }
+          ]
+        }
+      },
+      {
+        "id": 3,
+        "title": "\ud83d\udcca Monthly Quality Trend",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate({logger=\"six_sigma.requests\"} | json | quality_level=\"six_sigma\" [1h])) / sum(rate({logger=\"six_sigma.requests\"} [1h])) * 100",
+            "legendFormat": "Six Sigma Quality %"
+          },
+          {
+            "expr": "sum(rate({logger=\"six_sigma.requests\"} | json | sla_compliant=\"true\" [1h])) / sum(rate({logger=\"six_sigma.requests\"} [1h])) * 100",
+            "legendFormat": "SLA Compliance %"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 10
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 20
+            },
+            "color": {
+              "mode": "palette-classic"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 95
+                },
+                {
+                  "color": "green",
+                  "value": 99.99
+                }
+              ]
+            },
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "\ud83c\udfc5 Quality Certification Status",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "(\n  6 * sum(rate({logger=\"six_sigma.requests\"} | json | quality_level=\"six_sigma\" [5m])) +\n  5 * sum(rate({logger=\"six_sigma.requests\"} | json | quality_level=\"five_sigma\" [5m])) +\n  4 * sum(rate({logger=\"six_sigma.requests\"} | json | quality_level=\"four_sigma\" [5m])) +\n  3 * sum(rate({logger=\"six_sigma.requests\"} | json | quality_level=\"three_sigma\" [5m]))\n) / sum(rate({logger=\"six_sigma.requests\"} [5m]))",
+            "legendFormat": "Current Sigma Level"
+          }
+        ],
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 12,
+          "y": 10
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 4
+                },
+                {
+                  "color": "green",
+                  "value": 6
+                }
+              ]
+            },
+            "decimals": 1,
+            "custom": {
+              "displayMode": "basic"
+            }
+          }
+        },
+        "options": {
+          "textMode": "value_and_name",
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": 5,
+        "title": "\ud83d\udcb0 Cost of Poor Quality",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase({logger=\"six_sigma.requests\"} | json | is_error=\"true\" [24h])) * 10",
+            "legendFormat": "Estimated Daily Loss ($)"
+          }
+        ],
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 18,
+          "y": 10
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 100
+                },
+                {
+                  "color": "red",
+                  "value": 500
+                }
+              ]
+            },
+            "unit": "currencyUSD"
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "\ud83d\ude80 Service Excellence Matrix",
+        "type": "heatmap",
+        "targets": [
+          {
+            "expr": "sum by (service) (rate({logger=\"six_sigma.performance\"} | json | performance_score >= 90 [5m])) / sum by (service) (rate({logger=\"six_sigma.performance\"} [5m])) * 100",
+            "legendFormat": "{{service}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 14
+        },
+        "options": {
+          "calculate": true,
+          "color": {
+            "exponent": 0.5,
+            "fill": "#73BF69",
+            "mode": "opacity",
+            "scale": "exponential",
+            "scheme": "RdYlGn",
+            "steps": 64
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "\ud83d\udcc8 Performance vs. Availability Scatter",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "avg by (service) ({logger=\"six_sigma.performance\"} | json | unwrap performance_score) * avg by (service) ({logger=\"six_sigma.requests\"} | json | sla_compliant=\"true\" | unwrap performance_score) / 100",
+            "legendFormat": "{{service}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 18
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "points",
+              "pointSize": 8
+            },
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "\ud83c\udfaf Key Performance Indicators",
+        "type": "table",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 22
+        },
+        "targets": [
+          {
+            "expr": "1",
+            "legendFormat": "KPI"
+          }
+        ],
+        "fieldConfig": {
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Target"
+              },
+              "properties": [
+                {
+                  "id": "custom.width",
+                  "value": 80
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Current"
+              },
+              "properties": [
+                {
+                  "id": "custom.width",
+                  "value": 80
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "showHeader": true
+        },
+        "dataSource": {
+          "type": "testdata",
+          "uid": "${testdata}"
+        },
+        "transformations": [
+          {
+            "id": "calculateField",
+            "options": {
+              "mode": "static",
+              "reduce": {
+                "reducer": "sum"
+              },
+              "static": {
+                "name": "KPI",
+                "value": [
+                  {
+                    "KPI": "Availability",
+                    "Target": "99.99966%",
+                    "Current": "99.95%",
+                    "Status": "\u26a0\ufe0f"
+                  },
+                  {
+                    "KPI": "Response Time P95",
+                    "Target": "< 3s",
+                    "Current": "2.1s",
+                    "Status": "\u2705"
+                  },
+                  {
+                    "KPI": "Error Rate",
+                    "Target": "< 0.00034%",
+                    "Current": "0.025%",
+                    "Status": "\u26a0\ufe0f"
+                  },
+                  {
+                    "KPI": "Customer Satisfaction",
+                    "Target": "> 95%",
+                    "Current": "98.2%",
+                    "Status": "\u2705"
+                  },
+                  {
+                    "KPI": "Defects Per Million",
+                    "Target": "< 3.4",
+                    "Current": "12.5",
+                    "Status": "\u274c"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "\ud83d\udcca Process Capability (Cpk)",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "1.33 * (1 - sum(rate({logger=\"six_sigma.requests\"} | json | is_error=\"true\" [5m])) / sum(rate({logger=\"six_sigma.requests\"} [5m])))",
+            "legendFormat": "Process Capability Index"
+          }
+        ],
+        "gridPos": {
+          "h": 4,
+          "w": 12,
+          "x": 0,
+          "y": 26
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 1.0
+                },
+                {
+                  "color": "green",
+                  "value": 1.33
+                }
+              ]
+            },
+            "min": 0,
+            "max": 2
+          }
+        },
+        "options": {
+          "displayMode": "gradient",
+          "orientation": "horizontal"
+        }
+      }
+    ],
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "annotations": {
+      "list": [
+        {
+          "name": "Quality Milestones",
+          "enable": true,
+          "iconColor": "green",
+          "query": "{logger=\"six_sigma.requests\"} | json | quality_level=\"six_sigma\"",
+          "textFormat": "Six Sigma Achievement: {{service}}",
+          "tags": [
+            "milestone",
+            "six-sigma"
+          ]
+        }
+      ]
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "time_range",
+          "type": "custom",
+          "options": [
+            {
+              "text": "Last 1 hour",
+              "value": "1h"
+            },
+            {
+              "text": "Last 24 hours",
+              "value": "24h"
+            },
+            {
+              "text": "Last 7 days",
+              "value": "7d"
+            },
+            {
+              "text": "Last 30 days",
+              "value": "30d"
+            }
+          ],
+          "current": {
+            "selected": false,
+            "text": "Last 24 hours",
+            "value": "24h"
+          }
+        }
+      ]
+    }
+  }
+}

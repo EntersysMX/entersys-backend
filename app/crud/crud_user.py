@@ -44,10 +44,24 @@ def create_user(db: Session, email: str, password: str) -> "AdminUser":
     return db_user
 
 
-def create_admin_user(db: Session, email: str, password: str):
-    hashed_password = get_password_hash(password)
+def create_admin_user(db: Session, email: str, full_name: str = None, password: str = None, hashed_password: str = None):
+    """
+    Crear un nuevo usuario administrador.
+    Puede aceptar password plano O hashed_password (no ambos).
+    """
     from app.models.blog import AdminUser
-    db_user = AdminUser(email=email, hashed_password=hashed_password, is_active=True)
+
+    if hashed_password is None:
+        if password is None:
+            raise ValueError("Debe proporcionar password o hashed_password")
+        hashed_password = get_password_hash(password)
+
+    db_user = AdminUser(
+        email=email,
+        full_name=full_name or email.split('@')[0],  # Usar email como fallback
+        hashed_password=hashed_password,
+        is_active=True
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)

@@ -254,18 +254,12 @@ async def generate_qr_certificate(
         f"row_id={request.row_id}, email={request.email}, score={request.score}"
     )
 
-    # 1. Validar score mínimo
-    if request.score < MINIMUM_SCORE:
-        logger.warning(
-            f"Score too low for row {request.row_id}: {request.score} < {MINIMUM_SCORE}"
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "success": False,
-                "error": "SCORE_TOO_LOW",
-                "message": f"Score must be >= {MINIMUM_SCORE} to generate certificate. Current score: {request.score}"
-            }
+    # 1. Determinar si el certificado es válido basado en el score
+    is_valid = request.score >= MINIMUM_SCORE
+    if not is_valid:
+        logger.info(
+            f"Score below minimum for row {request.row_id}: {request.score} < {MINIMUM_SCORE}. "
+            f"Certificate will be generated but marked as invalid."
         )
 
     try:
@@ -313,7 +307,9 @@ async def generate_qr_certificate(
                     sheet_id=int(sheet_id),
                     row_id=request.row_id,
                     cert_uuid=cert_uuid,
-                    expiration_date=expiration_date
+                    expiration_date=expiration_date,
+                    is_valid=is_valid,
+                    score=request.score
                 )
             except OnboardingSmartsheetServiceError as e:
                 logger.error(f"Smartsheet update failed: {str(e)}")
@@ -430,21 +426,21 @@ async def validate_qr_certificate(
                 status_code=status.HTTP_302_FOUND
             )
 
-        # Verificar si el certificado es válido (no expirado)
-        if not service.is_certificate_valid(certificate):
-            logger.warning(f"Certificate expired: {id}")
-            return RedirectResponse(
-                url=REDIRECT_INVALID,
-                status_code=status.HTTP_302_FOUND
-            )
-
-        # Certificado válido - actualizar última validación en background
+        # Actualizar última validación en background (siempre que se escanee)
         row_id = certificate.get('row_id')
         if row_id:
             background_tasks.add_task(
                 update_last_validation_background,
                 int(sheet_id),
                 row_id
+            )
+
+        # Verificar si el certificado es válido (score >= 80 y no expirado)
+        if not service.is_certificate_valid(certificate):
+            logger.warning(f"Certificate invalid or expired: {id}")
+            return RedirectResponse(
+                url=REDIRECT_INVALID,
+                status_code=status.HTTP_302_FOUND
             )
 
         # Redirigir a página de certificación válida

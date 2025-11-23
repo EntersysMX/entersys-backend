@@ -1,0 +1,323 @@
+# Promtail Configuration for Remote Loki Log Shipping
+# Sends local Six Sigma logs to remote Loki instance at 34.59.193.54:3100
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+positions:
+  filename: ./promtail-positions.yaml
+
+clients:
+  - url: http://34.59.193.54:3100/loki/api/v1/push
+    timeout: 10s
+    backoff_config:
+      min_period: 1s
+      max_period: 5m
+      max_retries: 10
+    external_labels:
+      environment: local
+      instance: local-backend
+      source: entersys-backend
+
+scrape_configs:
+  # Six Sigma Performance Logs
+  - job_name: six-sigma-performance
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: six-sigma-performance
+          service: entersys-backend
+          component: six-sigma
+          log_type: performance
+          __path__: ./logs/six_sigma_performance.log
+
+    pipeline_stages:
+      # Parse the JSON logs
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            logger: logger
+            message: message
+            event_type: message.event_type
+            request_id: message.request_id
+            service: message.service
+            operation: message.operation
+            duration_ms: message.duration_ms
+            performance_category: message.performance_category
+            sla_compliant: message.sla_compliant
+            quality_level: message.quality_level
+            performance_score: message.performance_score
+
+      # Parse timestamp if available
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02 15:04:05,000'
+
+      # Add performance classification labels
+      - template:
+          source: sigma_level
+          template: |
+            {{ if .quality_level }}{{ .quality_level }}{{ else }}unknown{{ end }}
+
+      - template:
+          source: sla_breach
+          template: |
+            {{ if eq .sla_compliant "true" }}false{{ else }}true{{ end }}
+
+      # Add labels for filtering and alerting
+      - labels:
+          level:
+          service:
+          operation:
+          performance_category:
+          quality_level:
+          sigma_level:
+          sla_breach:
+          request_id:
+          log_type: performance
+
+  # Six Sigma Error Logs
+  - job_name: six-sigma-errors
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: six-sigma-errors
+          service: entersys-backend
+          component: six-sigma
+          log_type: errors
+          __path__: ./logs/six_sigma_errors.log
+
+    pipeline_stages:
+      # Parse the JSON logs
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            logger: logger
+            message: message
+            event_type: message.event_type
+            request_id: message.request_id
+            duration_ms: message.duration_ms
+            status_code: message.status_code
+            is_successful: message.is_successful
+            is_error: message.is_error
+            error_category: message.error_category
+            sla_compliant: message.sla_compliant
+            quality_level: message.quality_level
+            performance_score: message.performance_score
+            service_name: message.service_info.service
+            operation: message.service_info.operation
+            business_function: message.service_info.business_function
+            error_type: message.six_sigma_metrics.error_type
+            defect_count: message.six_sigma_metrics.defect_count
+            success_rate: message.six_sigma_metrics.success_rate
+            user_id: message.user_context.user_id
+            client_type: message.user_context.client_type
+
+      # Parse timestamp if available
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02 15:04:05,000'
+
+      # Add error severity classification
+      - template:
+          source: error_severity
+          template: |
+            {{ if ge (float64 .status_code) 500.0 }}critical
+            {{ else if ge (float64 .status_code) 400.0 }}warning
+            {{ else }}info{{ end }}
+
+      - template:
+          source: sla_breach
+          template: |
+            {{ if eq .sla_compliant "true" }}false{{ else }}true{{ end }}
+
+      # Add labels for filtering and alerting
+      - labels:
+          level:
+          service_name:
+          operation:
+          business_function:
+          error_category:
+          error_type:
+          error_severity:
+          quality_level:
+          sla_breach:
+          status_code:
+          client_type:
+          user_id:
+          request_id:
+          log_type: errors
+
+  # Six Sigma Request Logs
+  - job_name: six-sigma-requests
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: six-sigma-requests
+          service: entersys-backend
+          component: six-sigma
+          log_type: requests
+          __path__: ./logs/six_sigma_requests.log
+
+    pipeline_stages:
+      # Parse the JSON logs
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            logger: logger
+            message: message
+            event_type: message.event_type
+            request_id: message.request_id
+            duration_ms: message.duration_ms
+            status_code: message.status_code
+            is_successful: message.is_successful
+            endpoint: message.endpoint
+            method: message.method
+            service_name: message.service_name
+            operation_type: message.operation_type
+            business_function: message.business_function
+            user_id: message.user_id
+            client_ip: message.client_ip
+            user_agent: message.user_agent
+
+      # Parse timestamp if available
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02 15:04:05,000'
+
+      # Add request classification
+      - template:
+          source: request_category
+          template: |
+            {{ if .is_successful }}success{{ else }}failure{{ end }}
+
+      - template:
+          source: response_time_category
+          template: |
+            {{ if lt (float64 .duration_ms) 1000.0 }}fast
+            {{ else if lt (float64 .duration_ms) 3000.0 }}acceptable
+            {{ else }}slow{{ end }}
+
+      # Add labels for filtering and alerting
+      - labels:
+          level:
+          service_name:
+          operation_type:
+          business_function:
+          method:
+          request_category:
+          response_time_category:
+          status_code:
+          user_id:
+          request_id:
+          log_type: requests
+
+  # Six Sigma SLA Logs
+  - job_name: six-sigma-sla
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: six-sigma-sla
+          service: entersys-backend
+          component: six-sigma
+          log_type: sla
+          __path__: ./logs/six_sigma_sla.log
+
+    pipeline_stages:
+      # Parse the JSON logs
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            logger: logger
+            message: message
+
+      # Parse timestamp if available
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02 15:04:05,000'
+
+      # Add labels
+      - labels:
+          level:
+          log_type: sla
+
+  # General application logs for context
+  - job_name: app-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: app-logs
+          service: entersys-backend
+          component: application
+          log_type: general
+          __path__: ./logs/app.log
+
+    pipeline_stages:
+      # Parse the JSON logs
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            logger: logger
+            message: message
+            service: service
+            endpoint: endpoint
+            method: method
+            status_code: status_code
+            response_time_ms: response_time_ms
+            user_id: user_id
+
+      # Parse timestamp if available
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02T15:04:05.000000+00:00'
+
+      # Add labels
+      - labels:
+          level:
+          service:
+          method:
+          status_code:
+          log_type: general
+
+  # API specific logs for context
+  - job_name: api-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: api-logs
+          service: entersys-backend
+          component: api
+          log_type: api
+          __path__: ./logs/api.log
+
+    pipeline_stages:
+      # Parse the JSON logs
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            logger: logger
+            message: message
+
+      # Parse timestamp if available
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02T15:04:05.000000+00:00'
+
+      # Add labels
+      - labels:
+          level:
+          log_type: api

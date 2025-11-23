@@ -1,0 +1,333 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Six Sigma Analytics - Main Dashboard",
+    "tags": [
+      "six-sigma",
+      "entersys",
+      "quality",
+      "compliance"
+    ],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "\ud83c\udfaf Six Sigma Compliance Overview",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(rate({level=\"INFO\"} |= \"six_sigma_metrics\" |= \"quality_level\\\":\\\"six_sigma\"[5m]))",
+            "legendFormat": "Six Sigma Requests"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "displayMode": "list",
+              "orientation": "horizontal"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 90
+                },
+                {
+                  "color": "green",
+                  "value": 99.99966
+                }
+              ]
+            },
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "\u26a1 Response Time Distribution",
+        "type": "histogram",
+        "targets": [
+          {
+            "expr": "{logger=\"six_sigma.performance\"} | json | duration_ms < 1000",
+            "legendFormat": "< 1s (Excellent)"
+          },
+          {
+            "expr": "{logger=\"six_sigma.performance\"} | json | duration_ms >= 1000 and duration_ms <= 3000",
+            "legendFormat": "1-3s (Good)"
+          },
+          {
+            "expr": "{logger=\"six_sigma.performance\"} | json | duration_ms > 3000",
+            "legendFormat": "> 3s (SLA Breach)"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 6,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "\ud83d\udea8 Error Rate by Service",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "sum by (service) (rate({level=\"ERROR\"} [5m])) / sum by (service) (rate({level=~\"INFO|WARN|ERROR\"} [5m])) * 100",
+            "legendFormat": "{{service}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.001
+                },
+                {
+                  "color": "red",
+                  "value": 0.00034
+                }
+              ]
+            },
+            "unit": "percent",
+            "max": 1
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "\ud83d\udcc8 Quality Level Trends",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (quality_level) (count_over_time({logger=\"six_sigma.requests\"} | json | quality_level != \"\" [1h]))",
+            "legendFormat": "{{quality_level}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        },
+        "options": {
+          "pieType": "donut",
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": [
+              "percent"
+            ]
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "\ud83d\udd0d Real-Time Six Sigma Requests",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate({logger=\"six_sigma.requests\"} | json | six_sigma_metrics_quality_level=\"six_sigma\" [1m]))",
+            "legendFormat": "Six Sigma Quality"
+          },
+          {
+            "expr": "sum(rate({logger=\"six_sigma.requests\"} | json | six_sigma_metrics_quality_level=\"five_sigma\" [1m]))",
+            "legendFormat": "Five Sigma Quality"
+          },
+          {
+            "expr": "sum(rate({logger=\"six_sigma.requests\"} | json | six_sigma_metrics_quality_level=\"four_sigma\" [1m]))",
+            "legendFormat": "Four Sigma Quality"
+          },
+          {
+            "expr": "sum(rate({logger=\"six_sigma.requests\"} | json | six_sigma_metrics_quality_level=\"three_sigma\" [1m]))",
+            "legendFormat": "Three Sigma Quality"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 10
+            },
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "\ud83d\udcca SLA Compliance by Endpoint",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "{logger=\"six_sigma.requests\"} | json | line_format \"{{.endpoint}} {{.sla_compliant}} {{.duration_ms}}\"",
+            "legendFormat": ""
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {},
+              "indexByName": {},
+              "renameByName": {
+                "endpoint": "Endpoint",
+                "sla_compliant": "SLA Compliant",
+                "duration_ms": "Response Time (ms)",
+                "performance_score": "Performance Score"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "\ud83c\udf21\ufe0f Performance Heatmap",
+        "type": "heatmap",
+        "targets": [
+          {
+            "expr": "sum(rate({logger=\"six_sigma.performance\"} | json [5m])) by (service, performance_category)",
+            "legendFormat": "{{service}} - {{performance_category}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 16
+        },
+        "options": {
+          "calculate": true,
+          "calculation": {
+            "xBuckets": {
+              "mode": "size",
+              "value": "1h"
+            }
+          },
+          "color": {
+            "exponent": 0.5,
+            "fill": "#b4ff00",
+            "mode": "opacity",
+            "scale": "exponential",
+            "scheme": "RdYlGn",
+            "steps": 64
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "\ud83d\udccb Recent Six Sigma Events",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{logger=~\"six_sigma.*\"} | json | line_format \"\ud83d\udd52 {{.timestamp}} | {{.level}} | {{.service}} | {{.operation}} | {{.duration_ms}}ms | Score: {{.performance_score}}\"",
+            "legendFormat": ""
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 24
+        },
+        "options": {
+          "showTime": true,
+          "showLabels": false,
+          "showCommonLabels": false,
+          "wrapLogMessage": true,
+          "prettifyLogMessage": true,
+          "enableLogDetails": true,
+          "dedupStrategy": "none",
+          "sortOrder": "Descending"
+        }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "10s",
+    "annotations": {
+      "list": [
+        {
+          "name": "SLA Breaches",
+          "enable": true,
+          "iconColor": "red",
+          "query": "{logger=\"six_sigma.sla\"} | json | sla_compliant=\"false\"",
+          "textFormat": "SLA Breach: {{service}} - {{duration_ms}}ms",
+          "tags": [
+            "sla-breach",
+            "six-sigma"
+          ]
+        }
+      ]
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "service",
+          "type": "query",
+          "query": "label_values({logger=\"six_sigma.requests\"}, service)",
+          "current": {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          "includeAll": true,
+          "multi": true
+        },
+        {
+          "name": "quality_level",
+          "type": "query",
+          "query": "label_values({logger=\"six_sigma.requests\"}, quality_level)",
+          "current": {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          "includeAll": true,
+          "multi": true
+        }
+      ]
+    }
+  }
+}

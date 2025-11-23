@@ -1,0 +1,461 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Six Sigma Error Analysis & Quality Dashboard",
+    "tags": [
+      "six-sigma",
+      "errors",
+      "quality",
+      "defects",
+      "entersys"
+    ],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "\ud83c\udfaf Error Rate (PPM)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "(sum(rate({level=\"ERROR\"} [5m])) / sum(rate({level=~\"INFO|WARN|ERROR\"} [5m]))) * 1000000",
+            "legendFormat": "Defects Per Million"
+          }
+        ],
+        "gridPos": {
+          "h": 6,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 3.4
+                },
+                {
+                  "color": "red",
+                  "value": 233
+                }
+              ]
+            },
+            "unit": "short",
+            "decimals": 2
+          }
+        },
+        "options": {
+          "textMode": "value",
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": 2,
+        "title": "\ud83d\udcca Current Sigma Level",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "(\n  sum(rate({logger=\"six_sigma.requests\"} | json | quality_level=\"six_sigma\" [5m])) * 6 +\n  sum(rate({logger=\"six_sigma.requests\"} | json | quality_level=\"five_sigma\" [5m])) * 5 +\n  sum(rate({logger=\"six_sigma.requests\"} | json | quality_level=\"four_sigma\" [5m])) * 4 +\n  sum(rate({logger=\"six_sigma.requests\"} | json | quality_level=\"three_sigma\" [5m])) * 3 +\n  sum(rate({logger=\"six_sigma.requests\"} | json | quality_level=\"two_sigma\" [5m])) * 2 +\n  sum(rate({logger=\"six_sigma.requests\"} | json | quality_level=\"one_sigma\" [5m])) * 1\n) / sum(rate({logger=\"six_sigma.requests\"} [5m]))",
+            "legendFormat": "Current Sigma Level"
+          }
+        ],
+        "gridPos": {
+          "h": 6,
+          "w": 6,
+          "x": 6,
+          "y": 0
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 3
+                },
+                {
+                  "color": "green",
+                  "value": 6
+                }
+              ]
+            },
+            "min": 0,
+            "max": 6,
+            "decimals": 2
+          }
+        },
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        }
+      },
+      {
+        "id": 3,
+        "title": "\ud83d\ude80 Success Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(rate({logger=\"six_sigma.requests\"} | json | is_successful=\"true\" [5m])) / sum(rate({logger=\"six_sigma.requests\"} [5m])) * 100",
+            "legendFormat": "Success Rate"
+          }
+        ],
+        "gridPos": {
+          "h": 6,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 99
+                },
+                {
+                  "color": "green",
+                  "value": 99.99966
+                }
+              ]
+            },
+            "unit": "percent",
+            "decimals": 5
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "\u26a1 Defect Count",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase({logger=\"six_sigma.requests\"} | json | six_sigma_metrics_defect_count > 0 [1h]))",
+            "legendFormat": "Total Defects (1h)"
+          }
+        ],
+        "gridPos": {
+          "h": 6,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 1
+                },
+                {
+                  "color": "red",
+                  "value": 10
+                }
+              ]
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "\ud83d\udcc8 Error Rate Trends by Service",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum by (service) (rate({level=\"ERROR\"} [5m])) / sum by (service) (rate({level=~\"INFO|WARN|ERROR\"} [5m])) * 100",
+            "legendFormat": "{{service}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 6
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 10
+            },
+            "color": {
+              "mode": "palette-classic"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.1
+                },
+                {
+                  "color": "red",
+                  "value": 1
+                }
+              ]
+            },
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "\ud83d\udd0d Defect Types Distribution",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (error_type) (count_over_time({logger=\"six_sigma.requests\"} | json | six_sigma_metrics_error_type != \"none\" [1h]))",
+            "legendFormat": "{{error_type}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 6
+        },
+        "options": {
+          "pieType": "donut",
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": [
+              "percent",
+              "value"
+            ]
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "\ud83d\udea8 Error Details Log Stream",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{logger=\"six_sigma.errors\"} | json | line_format \"\ud83d\udea8 {{.timestamp}} | {{.service}} | {{.error_type}} | {{.error_message}}\"",
+            "legendFormat": ""
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 14
+        },
+        "options": {
+          "showTime": true,
+          "showLabels": false,
+          "wrapLogMessage": true,
+          "prettifyLogMessage": true,
+          "enableLogDetails": true,
+          "sortOrder": "Descending"
+        }
+      },
+      {
+        "id": 8,
+        "title": "\ud83d\udcca Quality Level Progression",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate({logger=\"six_sigma.requests\"} | json | quality_level=\"six_sigma\" [1m]))",
+            "legendFormat": "Six Sigma (99.99966%)"
+          },
+          {
+            "expr": "sum(rate({logger=\"six_sigma.requests\"} | json | quality_level=\"five_sigma\" [1m]))",
+            "legendFormat": "Five Sigma (99.977%)"
+          },
+          {
+            "expr": "sum(rate({logger=\"six_sigma.requests\"} | json | quality_level=\"four_sigma\" [1m]))",
+            "legendFormat": "Four Sigma (99.38%)"
+          },
+          {
+            "expr": "sum(rate({logger=\"six_sigma.requests\"} | json | quality_level=\"three_sigma\" [1m]))",
+            "legendFormat": "Three Sigma (93.32%)"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 22
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 20,
+              "stacking": {
+                "mode": "normal"
+              }
+            },
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "\ud83d\udd25 Critical Issues (Last 24h)",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "{logger=\"six_sigma.requests\"} | json | is_successful=\"false\" | line_format \"{{.service}} {{.endpoint}} {{.error_category}} {{.duration_ms}}\"",
+            "legendFormat": ""
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 22
+        },
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "renameByName": {
+                "service": "Service",
+                "endpoint": "Endpoint",
+                "error_category": "Error Type",
+                "duration_ms": "Response Time (ms)"
+              }
+            }
+          }
+        ],
+        "options": {
+          "sortBy": [
+            {
+              "displayName": "Response Time (ms)",
+              "desc": true
+            }
+          ]
+        }
+      },
+      {
+        "id": 10,
+        "title": "\ud83d\udcc8 DPMO Trend (Defects Per Million Opportunities)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "(sum(rate({level=\"ERROR\"} [5m])) / sum(rate({level=~\"INFO|WARN|ERROR\"} [5m]))) * 1000000",
+            "legendFormat": "DPMO"
+          }
+        ],
+        "gridPos": {
+          "h": 6,
+          "w": 24,
+          "x": 0,
+          "y": 30
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 30
+            },
+            "color": {
+              "fixedColor": "red",
+              "mode": "fixed"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 3.4
+                },
+                {
+                  "color": "red",
+                  "value": 233
+                }
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "hidden"
+          }
+        }
+      }
+    ],
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "refresh": "10s",
+    "annotations": {
+      "list": [
+        {
+          "name": "Quality Degradation",
+          "enable": true,
+          "iconColor": "orange",
+          "query": "{logger=\"six_sigma.requests\"} | json | quality_level != \"six_sigma\"",
+          "textFormat": "Quality Drop: {{service}} to {{quality_level}}",
+          "tags": [
+            "quality",
+            "degradation"
+          ]
+        }
+      ]
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "service",
+          "type": "query",
+          "query": "label_values({logger=\"six_sigma.requests\"}, service)",
+          "current": {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          "includeAll": true,
+          "multi": true
+        },
+        {
+          "name": "error_type",
+          "type": "query",
+          "query": "label_values({logger=\"six_sigma.requests\"}, error_type)",
+          "current": {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          "includeAll": true,
+          "multi": true
+        }
+      ]
+    }
+  }
+}

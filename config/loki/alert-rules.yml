@@ -1,0 +1,222 @@
+# 🚨 LOKI ALERT RULES FOR SIX SIGMA LOG MONITORING
+# Proactive alerting on log-based metrics
+
+groups:
+  # ═══════════════════════════════════════════════════════════════
+  # SIX SIGMA PERFORMANCE ALERTS
+  # ═══════════════════════════════════════════════════════════════
+
+  - name: six-sigma-performance-logs
+    rules:
+      # High error rate from logs
+      - alert: HighErrorRateFromLogs
+        expr: |
+          (
+            sum(rate({level="ERROR"} [5m])) by (service) /
+            sum(rate({level=~"INFO|WARN|ERROR"} [5m])) by (service)
+          ) * 100 > 1
+        for: 2m
+        labels:
+          severity: critical
+          sla: six-sigma
+          source: logs
+        annotations:
+          summary: "Alta tasa de errores detectada en logs para {{ $labels.service }}"
+          description: "El servicio {{ $labels.service }} tiene {{ $value }}% de logs de error, excede el límite Six Sigma"
+
+      # SLA breach detection from response times
+      - alert: SLABreachFromLogs
+        expr: |
+          sum(rate({sla_breach="true"} [5m])) by (service) > 0.1
+        for: 1m
+        labels:
+          severity: warning
+          sla: six-sigma
+          source: logs
+        annotations:
+          summary: "SLA breach detectado en {{ $labels.service }}"
+          description: "Detectadas {{ $value }} violaciones de SLA por minuto (>3s respuesta)"
+
+      # Critical errors surge
+      - alert: CriticalErrorSurge
+        expr: |
+          sum(rate({level="ERROR", error_severity="critical"} [5m])) by (service) > 5
+        for: 30s
+        labels:
+          severity: critical
+          sla: six-sigma
+          source: logs
+        annotations:
+          summary: "Surge de errores críticos en {{ $labels.service }}"
+          description: "{{ $value }} errores críticos por minuto detectados"
+
+  # ═══════════════════════════════════════════════════════════════
+  # SERVICE HEALTH ALERTS
+  # ═══════════════════════════════════════════════════════════════
+
+  - name: service-health-logs
+    rules:
+      # Service not producing logs
+      - alert: ServiceSilent
+        expr: |
+          sum(rate({job=~"docker-containers|entersys-api"} [10m])) by (service) == 0
+        for: 5m
+        labels:
+          severity: warning
+          source: logs
+        annotations:
+          summary: "Servicio {{ $labels.service }} no está produciendo logs"
+          description: "No se han recibido logs del servicio en 5 minutos"
+
+      # Database slow queries
+      - alert: DatabaseSlowQueries
+        expr: |
+          sum(rate({service="database", slow_query="true"} [5m])) by (service) > 2
+        for: 3m
+        labels:
+          severity: warning
+          source: logs
+        annotations:
+          summary: "Queries lentas detectadas en base de datos"
+          description: "{{ $value }} queries lentas por minuto (>1s)"
+
+      # Authentication failures
+      - alert: AuthenticationFailures
+        expr: |
+          sum(rate({level="ERROR"} |~ "auth|login|token" [5m])) by (service) > 10
+        for: 2m
+        labels:
+          severity: warning
+          source: logs
+        annotations:
+          summary: "Fallas de autenticación en {{ $labels.service }}"
+          description: "{{ $value }} fallas de autenticación por minuto"
+
+  # ═══════════════════════════════════════════════════════════════
+  # INFRASTRUCTURE ALERTS
+  # ═══════════════════════════════════════════════════════════════
+
+  - name: infrastructure-logs
+    rules:
+      # Traefik 5xx errors
+      - alert: TraefikServerErrors
+        expr: |
+          sum(rate({service="traefik", status_code=~"5.."} [5m])) by (service) > 1
+        for: 1m
+        labels:
+          severity: critical
+          source: logs
+        annotations:
+          summary: "Errores de servidor en Traefik"
+          description: "{{ $value }} errores 5xx por minuto en reverse proxy"
+
+      # High memory usage warnings in logs
+      - alert: MemoryWarningsInLogs
+        expr: |
+          sum(rate({level="WARN"} |~ "memory|OOM|out of memory" [5m])) by (service) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          source: logs
+        annotations:
+          summary: "Advertencias de memoria en {{ $labels.service }}"
+          description: "Detectadas advertencias de uso de memoria en logs"
+
+      # Connection timeouts
+      - alert: ConnectionTimeouts
+        expr: |
+          sum(rate({level=~"ERROR|WARN"} |~ "timeout|connection.*failed|refused" [5m])) by (service) > 1
+        for: 2m
+        labels:
+          severity: warning
+          source: logs
+        annotations:
+          summary: "Timeouts de conexión en {{ $labels.service }}"
+          description: "{{ $value }} timeouts de conexión por minuto"
+
+  # ═══════════════════════════════════════════════════════════════
+  # SMARTSHEET API SPECIFIC ALERTS
+  # ═══════════════════════════════════════════════════════════════
+
+  - name: smartsheet-api-logs
+    rules:
+      # Smartsheet API errors
+      - alert: SmartsheetAPIErrors
+        expr: |
+          sum(rate({service="entersys-api"} |~ "smartsheet.*error|Smartsheet.*failed" [5m])) > 0.5
+        for: 2m
+        labels:
+          severity: warning
+          service: smartsheet-api
+          source: logs
+        annotations:
+          summary: "Errores en Smartsheet API"
+          description: "{{ $value }} errores por minuto en operaciones Smartsheet"
+
+      # High response times in Smartsheet operations
+      - alert: SmartsheetSlowOperations
+        expr: |
+          sum(rate({service="entersys-api", action=~".*smartsheet.*"} |~ "duration_ms.*[3-9][0-9][0-9][0-9]" [5m])) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          service: smartsheet-api
+          source: logs
+        annotations:
+          summary: "Operaciones lentas en Smartsheet API"
+          description: "Detectadas operaciones Smartsheet >3s en logs"
+
+      # Authentication issues with Smartsheet
+      - alert: SmartsheetAuthIssues
+        expr: |
+          sum(rate({service="entersys-api"} |~ "smartsheet.*401|smartsheet.*403|Invalid.*token" [5m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: smartsheet-api
+          source: logs
+        annotations:
+          summary: "Problemas de autenticación con Smartsheet"
+          description: "Detectados errores de autenticación en Smartsheet API"
+
+  # ═══════════════════════════════════════════════════════════════
+  # LOG VOLUME AND HEALTH MONITORING
+  # ═══════════════════════════════════════════════════════════════
+
+  - name: log-health-monitoring
+    rules:
+      # Log volume surge (potential DDoS or error cascade)
+      - alert: LogVolumeSurge
+        expr: |
+          sum(rate({job=~"docker-containers|entersys-api"} [1m])) by (service) > 1000
+        for: 2m
+        labels:
+          severity: warning
+          source: logs
+        annotations:
+          summary: "Volumen alto de logs en {{ $labels.service }}"
+          description: "{{ $value }} logs por minuto - posible cascada de errores o ataque"
+
+      # Log ingestion lag
+      - alert: LogIngestionLag
+        expr: |
+          (time() - loki_ingester_memory_streams_created_total) > 300
+        for: 5m
+        labels:
+          severity: warning
+          source: loki
+        annotations:
+          summary: "Retraso en ingesta de logs"
+          description: "Los logs tienen un retraso de {{ $value }} segundos en procesamiento"
+
+      # Loki storage usage
+      - alert: LokiStorageHigh
+        expr: |
+          (loki_ingester_memory_streams / loki_ingester_memory_streams_created_total) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          source: loki
+        annotations:
+          summary: "Uso alto de almacenamiento en Loki"
+          description: "Loki está usando {{ $value }}% de su capacidad de streams"

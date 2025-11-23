@@ -26,6 +26,7 @@ class OnboardingSmartsheetService:
     COLUMN_FULL_NAME = "Nombre Completo"
     COLUMN_EMAIL = "Email"
     COLUMN_SCORE = "Score"
+    COLUMN_CERT_VALID = "Certificado Válido"
 
     def __init__(self, sheet_id: Optional[int] = None):
         """
@@ -98,7 +99,9 @@ class OnboardingSmartsheetService:
         sheet_id: int,
         row_id: int,
         cert_uuid: str,
-        expiration_date: datetime
+        expiration_date: datetime,
+        is_valid: bool = True,
+        score: float = 0.0
     ) -> bool:
         """
         Actualiza una fila de Smartsheet con los datos del certificado generado.
@@ -108,6 +111,8 @@ class OnboardingSmartsheetService:
             row_id: ID de la fila a actualizar
             cert_uuid: UUID del certificado generado
             expiration_date: Fecha de vencimiento del certificado
+            is_valid: Si el certificado es válido (score >= 80)
+            score: Puntuación obtenida
 
         Returns:
             True si la actualización fue exitosa
@@ -130,6 +135,15 @@ class OnboardingSmartsheetService:
                     'value': True
                 }
             ]
+
+            # Agregar columna de validez si existe
+            try:
+                cells.append({
+                    'column_id': self._get_column_id(self.COLUMN_CERT_VALID),
+                    'value': is_valid
+                })
+            except OnboardingSmartsheetServiceError:
+                self.logger.warning(f"Column '{self.COLUMN_CERT_VALID}' not found, skipping")
 
             # Crear objeto de fila para actualización
             row_to_update = smartsheet.models.Row()
@@ -263,7 +277,7 @@ class OnboardingSmartsheetService:
 
     def is_certificate_valid(self, certificate_data: Dict[str, Any]) -> bool:
         """
-        Verifica si un certificado es válido (no expirado).
+        Verifica si un certificado es válido (score >= 80 y no expirado).
 
         Args:
             certificate_data: Datos del certificado de Smartsheet
@@ -272,6 +286,12 @@ class OnboardingSmartsheetService:
             True si el certificado es válido
         """
         try:
+            # Primero verificar si el certificado fue marcado como válido (score >= 80)
+            cert_valid = certificate_data.get(self.COLUMN_CERT_VALID)
+            if cert_valid is not None and str(cert_valid).lower() in ['false', '0', 'no']:
+                self.logger.info("Certificate marked as invalid (score < 80)")
+                return False
+
             expiration_str = certificate_data.get(self.COLUMN_EXPIRATION)
 
             if not expiration_str:

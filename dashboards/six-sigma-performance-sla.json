@@ -1,0 +1,416 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Six Sigma Performance & SLA Dashboard",
+    "tags": [
+      "six-sigma",
+      "performance",
+      "sla",
+      "entersys"
+    ],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "\ud83c\udfaf SLA Compliance Rate",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "sum(rate({logger=\"six_sigma.requests\"} | json | sla_compliant=\"true\" [5m])) / sum(rate({logger=\"six_sigma.requests\"} [5m])) * 100",
+            "legendFormat": "SLA Compliance %"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 0,
+          "y": 0
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 95
+                },
+                {
+                  "color": "green",
+                  "value": 99.99966
+                }
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        }
+      },
+      {
+        "id": 2,
+        "title": "\u23f1\ufe0f Response Time P95",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "quantile(0.95, {logger=\"six_sigma.performance\"} | json | unwrap duration_ms)",
+            "legendFormat": "P95 Response Time"
+          }
+        ],
+        "gridPos": {
+          "h": 4,
+          "w": 8,
+          "x": 8,
+          "y": 0
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 1000
+                },
+                {
+                  "color": "orange",
+                  "value": 3000
+                },
+                {
+                  "color": "red",
+                  "value": 5000
+                }
+              ]
+            },
+            "unit": "ms"
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "\ud83d\ude80 Average Response Time",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "avg({logger=\"six_sigma.performance\"} | json | unwrap duration_ms)",
+            "legendFormat": "Avg Response Time"
+          }
+        ],
+        "gridPos": {
+          "h": 4,
+          "w": 8,
+          "x": 8,
+          "y": 4
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 500
+                },
+                {
+                  "color": "orange",
+                  "value": 1000
+                },
+                {
+                  "color": "red",
+                  "value": 3000
+                }
+              ]
+            },
+            "unit": "ms"
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "\ud83d\udcca Performance Score Distribution",
+        "type": "histogram",
+        "targets": [
+          {
+            "expr": "{logger=\"six_sigma.performance\"} | json | performance_score >= 90",
+            "legendFormat": "Excellent (90-100)"
+          },
+          {
+            "expr": "{logger=\"six_sigma.performance\"} | json | performance_score >= 75 and performance_score < 90",
+            "legendFormat": "Good (75-89)"
+          },
+          {
+            "expr": "{logger=\"six_sigma.performance\"} | json | performance_score >= 50 and performance_score < 75",
+            "legendFormat": "Average (50-74)"
+          },
+          {
+            "expr": "{logger=\"six_sigma.performance\"} | json | performance_score < 50",
+            "legendFormat": "Poor (<50)"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 16,
+          "y": 0
+        }
+      },
+      {
+        "id": 5,
+        "title": "\ud83d\udcc8 Response Time Trends by Service",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "avg by (service) ({logger=\"six_sigma.performance\"} | json | unwrap duration_ms)",
+            "legendFormat": "{{service}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 20
+            },
+            "color": {
+              "mode": "palette-classic"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 3000
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "\ud83d\udea8 SLA Breaches Timeline",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum by (service) (rate({logger=\"six_sigma.sla\"} | json | sla_compliant=\"false\" [1m]))",
+            "legendFormat": "{{service}} SLA Breaches/min"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "bars",
+              "fillOpacity": 80
+            },
+            "color": {
+              "mode": "palette-classic",
+              "fixedColor": "red"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 0.1
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "\ud83d\udd25 Top Slowest Endpoints",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "topk(10, avg by (endpoint) ({logger=\"six_sigma.performance\"} | json | unwrap duration_ms))",
+            "legendFormat": ""
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        },
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "renameByName": {
+                "endpoint": "Endpoint",
+                "Value": "Avg Response Time (ms)"
+              }
+            }
+          }
+        ],
+        "options": {
+          "sortBy": [
+            {
+              "displayName": "Avg Response Time (ms)",
+              "desc": true
+            }
+          ]
+        }
+      },
+      {
+        "id": 8,
+        "title": "\u2b50 Performance Categories",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (performance_category) (count_over_time({logger=\"six_sigma.performance\"} | json | performance_category != \"\" [1h]))",
+            "legendFormat": "{{performance_category}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 16
+        },
+        "options": {
+          "pieType": "donut",
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": [
+              "percent",
+              "value"
+            ]
+          },
+          "displayLabels": [
+            "name",
+            "percent"
+          ]
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "\ud83d\udcca SLA Compliance by Service",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "sum by (service) (rate({logger=\"six_sigma.requests\"} | json | sla_compliant=\"true\" [5m])) / sum by (service) (rate({logger=\"six_sigma.requests\"} [5m])) * 100",
+            "legendFormat": "{{service}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 24
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 95
+                },
+                {
+                  "color": "green",
+                  "value": 99.99
+                }
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient"
+        }
+      }
+    ],
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "refresh": "5s",
+    "annotations": {
+      "list": [
+        {
+          "name": "Critical SLA Breaches",
+          "enable": true,
+          "iconColor": "red",
+          "query": "{logger=\"six_sigma.sla\"} | json | duration_ms > 5000",
+          "textFormat": "Critical: {{service}} - {{duration_ms}}ms",
+          "tags": [
+            "critical",
+            "sla"
+          ]
+        }
+      ]
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "service",
+          "type": "query",
+          "query": "label_values({logger=\"six_sigma.performance\"}, service)",
+          "current": {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          "includeAll": true,
+          "multi": true
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,112 @@
+# 📝 CONFIGURACIÓN COMPLETA DE LOKI LOGGING STACK
+# Sistema de logs homogéneo para monitoreo Six Sigma
+
+version: '3.8'
+
+services:
+  # ═══════════════════════════════════════════════════════════════
+  # LOKI - LOG AGGREGATION SYSTEM
+  # ═══════════════════════════════════════════════════════════════
+
+  loki:
+    image: grafana/loki:2.9.2
+    container_name: entersys-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki-data:/loki
+      - ./config/loki:/etc/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    environment:
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+      - JAEGER_SAMPLER_TYPE=const
+      - JAEGER_SAMPLER_PARAM=1
+    networks:
+      - entersys-network
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.loki.rule=Host(`loki.entersys.mx`)"
+      - "traefik.http.routers.loki.tls.certresolver=letsencrypt"
+      - "traefik.http.services.loki.loadbalancer.server.port=3100"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ═══════════════════════════════════════════════════════════════
+  # PROMTAIL - LOG COLLECTOR
+  # ═══════════════════════════════════════════════════════════════
+
+  promtail:
+    image: grafana/promtail:2.9.2
+    container_name: entersys-promtail
+    volumes:
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./config/promtail:/etc/promtail
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - entersys-network
+    restart: unless-stopped
+    depends_on:
+      - loki
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ═══════════════════════════════════════════════════════════════
+  # FLUENT BIT - LOG PROCESSOR (ALTERNATIVO)
+  # ═══════════════════════════════════════════════════════════════
+
+  fluent-bit:
+    image: fluent/fluent-bit:2.2.0
+    container_name: entersys-fluent-bit
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log:/var/log:ro
+      - ./config/fluent-bit:/fluent-bit/etc
+    command: /fluent-bit/bin/fluent-bit --config=/fluent-bit/etc/fluent-bit.conf
+    networks:
+      - entersys-network
+    depends_on:
+      - loki
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # ═══════════════════════════════════════════════════════════════
+  # LOG ROTATOR - LIMPIEZA AUTOMÁTICA
+  # ═══════════════════════════════════════════════════════════════
+
+  log-rotator:
+    image: alpine:latest
+    container_name: entersys-log-rotator
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers
+      - /var/log:/var/log
+    command: >
+      sh -c "
+        apk add --no-cache dcron logrotate &&
+        echo '0 2 * * * /usr/sbin/logrotate /etc/logrotate.conf' | crontab - &&
+        echo 'Starting log rotator...' &&
+        crond -f -l 2
+      "
+    networks:
+      - entersys-network
+    restart: unless-stopped
+
+volumes:
+  loki-data:
+    driver: local
+
+networks:
+  entersys-network:
+    external: true
