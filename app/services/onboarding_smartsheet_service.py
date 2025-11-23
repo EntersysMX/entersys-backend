@@ -286,7 +286,18 @@ class OnboardingSmartsheetService:
             True si el certificado es válido
         """
         try:
-            # Primero verificar si el certificado fue marcado como válido (score >= 80)
+            # Verificar el score directamente
+            score_value = certificate_data.get(self.COLUMN_SCORE)
+            if score_value is not None:
+                try:
+                    score = float(str(score_value).replace('%', '').strip())
+                    if score < 80.0:
+                        self.logger.info(f"Certificate invalid: score {score} < 80")
+                        return False
+                except (ValueError, TypeError):
+                    self.logger.warning(f"Could not parse score value: {score_value}")
+
+            # También verificar columna de validez si existe
             cert_valid = certificate_data.get(self.COLUMN_CERT_VALID)
             if cert_valid is not None and str(cert_valid).lower() in ['false', '0', 'no']:
                 self.logger.info("Certificate marked as invalid (score < 80)")

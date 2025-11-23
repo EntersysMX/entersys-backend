@@ -149,7 +149,6 @@ def send_qr_email(
                     <div class="certificate-info">
                         <p><strong>Detalles del Certificado:</strong></p>
                         <ul>
-                            <li>ID de Certificado: <span class="highlight">{cert_uuid}</span></li>
                             <li>Calificación: <span class="highlight">{score}%</span></li>
                             <li>Estado: <span class="highlight">APROBADO</span></li>
                             <li>Fecha de Emisión: <span class="highlight">{datetime.utcnow().strftime('%d/%m/%Y')}</span></li>
@@ -258,7 +257,6 @@ def send_qr_email(
                     <div class="result-info">
                         <p><strong>Resultado de la Evaluación:</strong></p>
                         <ul>
-                            <li>ID de Registro: <span class="highlight-fail">{cert_uuid}</span></li>
                             <li>Calificación Obtenida: <span class="highlight-fail">{score}%</span></li>
                             <li>Calificación Mínima Requerida: <span class="highlight-fail">80%</span></li>
                             <li>Estado: <span class="highlight-fail">NO APROBADO</span></li>
