@@ -70,16 +70,16 @@ def send_qr_email(
         msg = MIMEMultipart('mixed')
 
         if is_valid:
-            msg['Subject'] = f"Certificado de Seguridad Aprobado - {full_name}"
+            msg['Subject'] = f"Onboarding Aprobado - {full_name}"
         else:
-            msg['Subject'] = f"Resultado de Evaluación de Seguridad - {full_name}"
+            msg['Subject'] = f"Onboarding No Aprobado - {full_name}"
 
         msg['From'] = "Entersys <no-reply@entersys.mx>"
         msg['To'] = email_to
 
         # Contenido HTML del email - diferente según si aprobó o no
         if is_valid:
-            # Email para certificado aprobado
+            # Email para certificado aprobado - Branding FEMSA
             html_content = f"""
             <!DOCTYPE html>
             <html>
@@ -93,25 +93,33 @@ def send_qr_email(
                         max-width: 600px;
                         margin: 0 auto;
                         padding: 20px;
+                        background-color: #f9fafb;
                     }}
                     .container {{
-                        background-color: #f9fafb;
+                        background-color: #ffffff;
                         border-radius: 8px;
                         padding: 30px;
                         margin: 20px 0;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                     }}
                     .header {{
                         text-align: center;
                         margin-bottom: 30px;
+                        padding-bottom: 20px;
+                        border-bottom: 3px solid #D91E18;
+                    }}
+                    .logo {{
+                        max-height: 50px;
+                        margin-bottom: 15px;
                     }}
                     h1 {{
-                        color: #093D53;
+                        color: #1f2937;
                         font-size: 24px;
-                        margin-bottom: 20px;
+                        margin: 0;
                     }}
                     .certificate-info {{
-                        background-color: #e8f4f8;
-                        border-left: 4px solid #009CA6;
+                        background-color: #f0fdf4;
+                        border-left: 4px solid #16a34a;
                         padding: 15px;
                         margin: 20px 0;
                         border-radius: 4px;
@@ -120,7 +128,7 @@ def send_qr_email(
                         text-align: center;
                         margin: 30px 0;
                         padding: 20px;
-                        background-color: white;
+                        background-color: #f9fafb;
                         border-radius: 8px;
                     }}
                     .footer {{
@@ -132,23 +140,27 @@ def send_qr_email(
                         color: #6b7280;
                     }}
                     .highlight {{
-                        color: #009CA6;
+                        color: #16a34a;
                         font-weight: bold;
+                    }}
+                    .accent {{
+                        color: #D91E18;
                     }}
                 </style>
             </head>
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>Certificado de Seguridad Industrial</h1>
+                        <img src="https://www.femsa.com/wp-content/uploads/2023/03/logo-femsa.svg" alt="FEMSA" class="logo">
+                        <h1>Onboarding Aprobado</h1>
                     </div>
 
                     <p>Estimado/a <strong>{full_name}</strong>,</p>
 
-                    <p>Felicitaciones por completar exitosamente el proceso de certificación de seguridad industrial de Entersys.</p>
+                    <p>Tu certificación de Seguridad Industrial ha sido validada correctamente. Has cumplido con todos los requisitos del curso y tu información ha sido aprobada conforme a los estándares de seguridad establecidos.</p>
 
                     <div class="certificate-info">
-                        <p><strong>Detalles del Certificado:</strong></p>
+                        <p><strong>Detalles de la Certificación:</strong></p>
                         <ul>
                             <li>Calificación: <span class="highlight">{score}%</span></li>
                             <li>Estado: <span class="highlight">APROBADO</span></li>
@@ -169,18 +181,16 @@ def send_qr_email(
                         <li>El personal de seguridad escaneará tu código para verificar tu certificación.</li>
                     </ol>
 
-                    <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
-
                     <div class="footer">
                         <p>Este es un correo automático, por favor no respondas a este mensaje.</p>
-                        <p>&copy; {datetime.utcnow().year} Entersys. Todos los derechos reservados.</p>
+                        <p>&copy; {datetime.utcnow().year} FEMSA - Entersys. Todos los derechos reservados.</p>
                     </div>
                 </div>
             </body>
             </html>
             """
         else:
-            # Email para certificado NO aprobado
+            # Email para certificado NO aprobado - Branding FEMSA
             html_content = f"""
             <!DOCTYPE html>
             <html>
@@ -194,25 +204,33 @@ def send_qr_email(
                         max-width: 600px;
                         margin: 0 auto;
                         padding: 20px;
+                        background-color: #f9fafb;
                     }}
                     .container {{
-                        background-color: #f9fafb;
+                        background-color: #ffffff;
                         border-radius: 8px;
                         padding: 30px;
                         margin: 20px 0;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                     }}
                     .header {{
                         text-align: center;
                         margin-bottom: 30px;
+                        padding-bottom: 20px;
+                        border-bottom: 3px solid #D91E18;
+                    }}
+                    .logo {{
+                        max-height: 50px;
+                        margin-bottom: 15px;
                     }}
                     h1 {{
-                        color: #DC2626;
+                        color: #1f2937;
                         font-size: 24px;
-                        margin-bottom: 20px;
+                        margin: 0;
                     }}
                     .result-info {{
                         background-color: #FEE2E2;
-                        border-left: 4px solid #DC2626;
+                        border-left: 4px solid #D91E18;
                         padding: 15px;
                         margin: 20px 0;
                         border-radius: 4px;
@@ -221,7 +239,7 @@ def send_qr_email(
                         text-align: center;
                         margin: 30px 0;
                         padding: 20px;
-                        background-color: white;
+                        background-color: #f9fafb;
                         border-radius: 8px;
                     }}
                     .footer {{
@@ -233,7 +251,7 @@ def send_qr_email(
                         color: #6b7280;
                     }}
                     .highlight-fail {{
-                        color: #DC2626;
+                        color: #D91E18;
                         font-weight: bold;
                     }}
                     .next-steps {{
@@ -248,12 +266,13 @@ def send_qr_email(
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>Resultado de Evaluación de Seguridad</h1>
+                        <img src="https://www.femsa.com/wp-content/uploads/2023/03/logo-femsa.svg" alt="FEMSA" class="logo">
+                        <h1>Onboarding No Aprobado</h1>
                     </div>
 
                     <p>Estimado/a <strong>{full_name}</strong>,</p>
 
-                    <p>Gracias por completar la evaluación de seguridad industrial de Entersys. Lamentamos informarle que su calificación no alcanzó el puntaje mínimo requerido para la certificación.</p>
+                    <p>Tu certificación de Seguridad Industrial no pudo ser validada. La información proporcionada o los requisitos del curso no cumplen con los estándares mínimos de seguridad establecidos.</p>
 
                     <div class="result-info">
                         <p><strong>Resultado de la Evaluación:</strong></p>
@@ -266,7 +285,7 @@ def send_qr_email(
 
                     <div class="next-steps">
                         <p><strong>Próximos Pasos:</strong></p>
-                        <p>Para obtener su certificación de seguridad, deberá:</p>
+                        <p>Por favor revisa las observaciones enviadas, corrige la información o completa los requisitos faltantes para volver a enviar tu solicitud de validación:</p>
                         <ol>
                             <li>Revisar el material de capacitación nuevamente</li>
                             <li>Solicitar una nueva evaluación a su supervisor</li>
@@ -283,7 +302,7 @@ def send_qr_email(
 
                     <div class="footer">
                         <p>Este es un correo automático, por favor no respondas a este mensaje.</p>
-                        <p>&copy; {datetime.utcnow().year} Entersys. Todos los derechos reservados.</p>
+                        <p>&copy; {datetime.utcnow().year} FEMSA - Entersys. Todos los derechos reservados.</p>
                     </div>
                 </div>
             </body>
