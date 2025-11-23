@@ -19,18 +19,15 @@ services:
     container_name: entersys-content-api
     restart: always
     env_file: .env
-    ports:
-      - "8000:8000"
-      - "8443:8000"
     networks:
       - entersys_net
       - traefik_net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.entersys-api-dev.rule=Host(`api.dev.entersys.mx`)"
-      - "traefik.http.routers.entersys-api-dev.entrypoints=websecure"
-      - "traefik.http.routers.entersys-api-dev.tls.certresolver=letsencrypt"
-      - "traefik.http.services.entersys-api-dev.loadbalancer.server.port=8000"
+      - "traefik.http.routers.entersys-api.rule=Host(`api.entersys.mx`)"
+      - "traefik.http.routers.entersys-api.entrypoints=websecure"
+      - "traefik.http.routers.entersys-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.entersys-api.loadbalancer.server.port=8000"
     depends_on:
       database:
         condition: service_healthy
