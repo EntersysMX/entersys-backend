@@ -45,7 +45,9 @@ def send_qr_email(
     full_name: str,
     qr_image: bytes,
     expiration_date: datetime,
-    cert_uuid: str
+    cert_uuid: str,
+    is_valid: bool = True,
+    score: float = 0.0
 ) -> bool:
     """
     Envía el email con el código QR adjunto.
@@ -56,6 +58,8 @@ def send_qr_email(
         qr_image: Imagen del QR en bytes
         expiration_date: Fecha de vencimiento del certificado
         cert_uuid: UUID del certificado
+        is_valid: Si el certificado es válido (score >= 80)
+        score: Puntuación obtenida
 
     Returns:
         True si el email se envió exitosamente
@@ -63,109 +67,229 @@ def send_qr_email(
     try:
         # Crear mensaje multipart
         msg = MIMEMultipart('mixed')
-        msg['Subject'] = f"Certificado de Seguridad - {full_name}"
+
+        if is_valid:
+            msg['Subject'] = f"Certificado de Seguridad Aprobado - {full_name}"
+        else:
+            msg['Subject'] = f"Resultado de Evaluación de Seguridad - {full_name}"
+
         msg['From'] = "Entersys <no-reply@entersys.mx>"
         msg['To'] = email_to
 
-        # Contenido HTML del email
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <style>
-                body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-                    line-height: 1.6;
-                    color: #333;
-                    max-width: 600px;
-                    margin: 0 auto;
-                    padding: 20px;
-                }}
-                .container {{
-                    background-color: #f9fafb;
-                    border-radius: 8px;
-                    padding: 30px;
-                    margin: 20px 0;
-                }}
-                .header {{
-                    text-align: center;
-                    margin-bottom: 30px;
-                }}
-                h1 {{
-                    color: #093D53;
-                    font-size: 24px;
-                    margin-bottom: 20px;
-                }}
-                .certificate-info {{
-                    background-color: #e8f4f8;
-                    border-left: 4px solid #009CA6;
-                    padding: 15px;
-                    margin: 20px 0;
-                    border-radius: 4px;
-                }}
-                .qr-section {{
-                    text-align: center;
-                    margin: 30px 0;
-                    padding: 20px;
-                    background-color: white;
-                    border-radius: 8px;
-                }}
-                .footer {{
-                    text-align: center;
-                    margin-top: 30px;
-                    padding-top: 20px;
-                    border-top: 1px solid #e5e7eb;
-                    font-size: 12px;
-                    color: #6b7280;
-                }}
-                .highlight {{
-                    color: #009CA6;
-                    font-weight: bold;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1>Certificado de Seguridad Industrial</h1>
+        # Contenido HTML del email - diferente según si aprobó o no
+        if is_valid:
+            # Email para certificado aprobado
+            html_content = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body {{
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                        line-height: 1.6;
+                        color: #333;
+                        max-width: 600px;
+                        margin: 0 auto;
+                        padding: 20px;
+                    }}
+                    .container {{
+                        background-color: #f9fafb;
+                        border-radius: 8px;
+                        padding: 30px;
+                        margin: 20px 0;
+                    }}
+                    .header {{
+                        text-align: center;
+                        margin-bottom: 30px;
+                    }}
+                    h1 {{
+                        color: #093D53;
+                        font-size: 24px;
+                        margin-bottom: 20px;
+                    }}
+                    .certificate-info {{
+                        background-color: #e8f4f8;
+                        border-left: 4px solid #009CA6;
+                        padding: 15px;
+                        margin: 20px 0;
+                        border-radius: 4px;
+                    }}
+                    .qr-section {{
+                        text-align: center;
+                        margin: 30px 0;
+                        padding: 20px;
+                        background-color: white;
+                        border-radius: 8px;
+                    }}
+                    .footer {{
+                        text-align: center;
+                        margin-top: 30px;
+                        padding-top: 20px;
+                        border-top: 1px solid #e5e7eb;
+                        font-size: 12px;
+                        color: #6b7280;
+                    }}
+                    .highlight {{
+                        color: #009CA6;
+                        font-weight: bold;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Certificado de Seguridad Industrial</h1>
+                    </div>
+
+                    <p>Estimado/a <strong>{full_name}</strong>,</p>
+
+                    <p>Felicitaciones por completar exitosamente el proceso de certificación de seguridad industrial de Entersys.</p>
+
+                    <div class="certificate-info">
+                        <p><strong>Detalles del Certificado:</strong></p>
+                        <ul>
+                            <li>ID de Certificado: <span class="highlight">{cert_uuid}</span></li>
+                            <li>Calificación: <span class="highlight">{score}%</span></li>
+                            <li>Estado: <span class="highlight">APROBADO</span></li>
+                            <li>Fecha de Emisión: <span class="highlight">{datetime.utcnow().strftime('%d/%m/%Y')}</span></li>
+                            <li>Válido hasta: <span class="highlight">{expiration_date.strftime('%d/%m/%Y')}</span></li>
+                        </ul>
+                    </div>
+
+                    <div class="qr-section">
+                        <p><strong>Tu código QR de acceso está adjunto a este correo.</strong></p>
+                        <p>Preséntalo al personal de seguridad en cada ingreso a las instalaciones.</p>
+                    </div>
+
+                    <p><strong>Instrucciones:</strong></p>
+                    <ol>
+                        <li>Guarda este correo y el código QR adjunto.</li>
+                        <li>Puedes imprimir el QR o mostrarlo desde tu dispositivo móvil.</li>
+                        <li>El personal de seguridad escaneará tu código para verificar tu certificación.</li>
+                    </ol>
+
+                    <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
+
+                    <div class="footer">
+                        <p>Este es un correo automático, por favor no respondas a este mensaje.</p>
+                        <p>&copy; {datetime.utcnow().year} Entersys. Todos los derechos reservados.</p>
+                    </div>
                 </div>
+            </body>
+            </html>
+            """
+        else:
+            # Email para certificado NO aprobado
+            html_content = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body {{
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                        line-height: 1.6;
+                        color: #333;
+                        max-width: 600px;
+                        margin: 0 auto;
+                        padding: 20px;
+                    }}
+                    .container {{
+                        background-color: #f9fafb;
+                        border-radius: 8px;
+                        padding: 30px;
+                        margin: 20px 0;
+                    }}
+                    .header {{
+                        text-align: center;
+                        margin-bottom: 30px;
+                    }}
+                    h1 {{
+                        color: #DC2626;
+                        font-size: 24px;
+                        margin-bottom: 20px;
+                    }}
+                    .result-info {{
+                        background-color: #FEE2E2;
+                        border-left: 4px solid #DC2626;
+                        padding: 15px;
+                        margin: 20px 0;
+                        border-radius: 4px;
+                    }}
+                    .qr-section {{
+                        text-align: center;
+                        margin: 30px 0;
+                        padding: 20px;
+                        background-color: white;
+                        border-radius: 8px;
+                    }}
+                    .footer {{
+                        text-align: center;
+                        margin-top: 30px;
+                        padding-top: 20px;
+                        border-top: 1px solid #e5e7eb;
+                        font-size: 12px;
+                        color: #6b7280;
+                    }}
+                    .highlight-fail {{
+                        color: #DC2626;
+                        font-weight: bold;
+                    }}
+                    .next-steps {{
+                        background-color: #FEF3C7;
+                        border-left: 4px solid #F59E0B;
+                        padding: 15px;
+                        margin: 20px 0;
+                        border-radius: 4px;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Resultado de Evaluación de Seguridad</h1>
+                    </div>
 
-                <p>Estimado/a <strong>{full_name}</strong>,</p>
+                    <p>Estimado/a <strong>{full_name}</strong>,</p>
 
-                <p>Felicitaciones por completar exitosamente el proceso de certificación de seguridad industrial de Entersys.</p>
+                    <p>Gracias por completar la evaluación de seguridad industrial de Entersys. Lamentamos informarle que su calificación no alcanzó el puntaje mínimo requerido para la certificación.</p>
 
-                <div class="certificate-info">
-                    <p><strong>Detalles del Certificado:</strong></p>
-                    <ul>
-                        <li>ID de Certificado: <span class="highlight">{cert_uuid}</span></li>
-                        <li>Fecha de Emisión: <span class="highlight">{datetime.utcnow().strftime('%d/%m/%Y')}</span></li>
-                        <li>Válido hasta: <span class="highlight">{expiration_date.strftime('%d/%m/%Y')}</span></li>
-                    </ul>
+                    <div class="result-info">
+                        <p><strong>Resultado de la Evaluación:</strong></p>
+                        <ul>
+                            <li>ID de Registro: <span class="highlight-fail">{cert_uuid}</span></li>
+                            <li>Calificación Obtenida: <span class="highlight-fail">{score}%</span></li>
+                            <li>Calificación Mínima Requerida: <span class="highlight-fail">80%</span></li>
+                            <li>Estado: <span class="highlight-fail">NO APROBADO</span></li>
+                        </ul>
+                    </div>
+
+                    <div class="next-steps">
+                        <p><strong>Próximos Pasos:</strong></p>
+                        <p>Para obtener su certificación de seguridad, deberá:</p>
+                        <ol>
+                            <li>Revisar el material de capacitación nuevamente</li>
+                            <li>Solicitar una nueva evaluación a su supervisor</li>
+                            <li>Obtener una calificación mínima de 80%</li>
+                        </ol>
+                    </div>
+
+                    <div class="qr-section">
+                        <p><strong>Se adjunta un código QR de referencia.</strong></p>
+                        <p>Este código NO es válido para acceso a las instalaciones.</p>
+                    </div>
+
+                    <p>Si tiene preguntas sobre el proceso de re-evaluación, contacte a su supervisor o al departamento de seguridad.</p>
+
+                    <div class="footer">
+                        <p>Este es un correo automático, por favor no respondas a este mensaje.</p>
+                        <p>&copy; {datetime.utcnow().year} Entersys. Todos los derechos reservados.</p>
+                    </div>
                 </div>
-
-                <div class="qr-section">
-                    <p><strong>Tu código QR de acceso está adjunto a este correo.</strong></p>
-                    <p>Preséntalo al personal de seguridad en cada ingreso a las instalaciones.</p>
-                </div>
-
-                <p><strong>Instrucciones:</strong></p>
-                <ol>
-                    <li>Guarda este correo y el código QR adjunto.</li>
-                    <li>Puedes imprimir el QR o mostrarlo desde tu dispositivo móvil.</li>
-                    <li>El personal de seguridad escaneará tu código para verificar tu certificación.</li>
-                </ol>
-
-                <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
-
-                <div class="footer">
-                    <p>Este es un correo automático, por favor no respondas a este mensaje.</p>
-                    <p>&copy; {datetime.utcnow().year} Entersys. Todos los derechos reservados.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
+            </body>
+            </html>
+            """
 
         # Adjuntar contenido HTML
         html_part = MIMEText(html_content, 'html')
@@ -279,7 +403,9 @@ async def generate_qr_certificate(
             full_name=request.full_name,
             qr_image=qr_image,
             expiration_date=expiration_date,
-            cert_uuid=cert_uuid
+            cert_uuid=cert_uuid,
+            is_valid=is_valid,
+            score=request.score
         )
 
         if not email_sent:
