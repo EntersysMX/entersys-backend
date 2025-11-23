@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Optional
 import smtplib
+import asyncio
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -337,6 +338,48 @@ async def update_last_validation_background(
         logger.error(f"Background task failed: {str(e)}")
 
 
+async def update_smartsheet_certificate_background(
+    sheet_id: int,
+    row_id: int,
+    cert_uuid: str,
+    expiration_date: datetime,
+    is_valid: bool,
+    score: float
+) -> None:
+    """
+    Tarea en background para actualizar Smartsheet con datos del certificado.
+
+    Args:
+        sheet_id: ID de la hoja
+        row_id: ID de la fila
+        cert_uuid: UUID del certificado
+        expiration_date: Fecha de vencimiento
+        is_valid: Si el certificado es válido
+        score: Puntuación obtenida
+    """
+    try:
+        service = OnboardingSmartsheetService()
+        result = await asyncio.wait_for(
+            service.update_row_with_certificate(
+                sheet_id=sheet_id,
+                row_id=row_id,
+                cert_uuid=cert_uuid,
+                expiration_date=expiration_date,
+                is_valid=is_valid,
+                score=score
+            ),
+            timeout=30.0  # 30 second timeout
+        )
+        if result:
+            logger.info(f"Background task completed: updated Smartsheet for row {row_id}")
+        else:
+            logger.warning(f"Background task: Smartsheet update returned False for row {row_id}")
+    except asyncio.TimeoutError:
+        logger.error(f"Background task timeout: Smartsheet update for row {row_id} took too long")
+    except Exception as e:
+        logger.error(f"Background task failed for row {row_id}: {str(e)}")
+
+
 @router.post(
     "/generate",
     response_model=OnboardingGenerateResponse,
@@ -366,7 +409,8 @@ async def update_last_validation_background(
     """
 )
 async def generate_qr_certificate(
-    request: OnboardingGenerateRequest
+    request: OnboardingGenerateRequest,
+    background_tasks: BackgroundTasks
 ):
     """
     Endpoint para generar un certificado QR de onboarding.
@@ -417,7 +461,7 @@ async def generate_qr_certificate(
                 }
             )
 
-        # 6. Actualizar Smartsheet
+        # 6. Actualizar Smartsheet en background (no bloquear la respuesta)
         # Obtener SHEET_ID del environment o usar el proporcionado
         sheet_id = getattr(settings, 'SHEET_ID', None)
 
@@ -425,20 +469,18 @@ async def generate_qr_certificate(
             logger.warning("SHEET_ID not configured, skipping Smartsheet update")
             smartsheet_updated = False
         else:
-            try:
-                service = get_onboarding_service()
-                smartsheet_updated = await service.update_row_with_certificate(
-                    sheet_id=int(sheet_id),
-                    row_id=request.row_id,
-                    cert_uuid=cert_uuid,
-                    expiration_date=expiration_date,
-                    is_valid=is_valid,
-                    score=request.score
-                )
-            except OnboardingSmartsheetServiceError as e:
-                logger.error(f"Smartsheet update failed: {str(e)}")
-                # No fallamos el endpoint completo si solo falla Smartsheet
-                smartsheet_updated = False
+            # Agregar tarea en background para actualizar Smartsheet
+            background_tasks.add_task(
+                update_smartsheet_certificate_background,
+                int(sheet_id),
+                request.row_id,
+                cert_uuid,
+                expiration_date,
+                is_valid,
+                request.score
+            )
+            smartsheet_updated = True  # Se actualizará en background
+            logger.info(f"Smartsheet update scheduled in background for row {request.row_id}")
 
         # 7. Construir respuesta exitosa
         response_data = OnboardingGenerateData(
