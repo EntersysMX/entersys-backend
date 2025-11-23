@@ -24,6 +24,7 @@ services:
       - traefik_net
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
       - "traefik.http.routers.entersys-api.rule=Host(`api.entersys.mx`)"
       - "traefik.http.routers.entersys-api.entrypoints=websecure"
       - "traefik.http.routers.entersys-api.tls.certresolver=letsencrypt"
