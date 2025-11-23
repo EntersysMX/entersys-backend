@@ -106,7 +106,7 @@ def send_qr_email(
                         text-align: center;
                         margin-bottom: 30px;
                         padding-bottom: 20px;
-                        border-bottom: 3px solid #D91E18;
+                        border-bottom: 3px solid #FFC600;
                     }}
                     .logo {{
                         max-height: 50px;
@@ -151,7 +151,7 @@ def send_qr_email(
             <body>
                 <div class="container">
                     <div class="header">
-                        <img src="https://www.femsa.com/wp-content/uploads/2023/03/logo-femsa.svg" alt="FEMSA" class="logo">
+                        <img src="https://www.femsa.com/wp-content/uploads/2019/07/femsa.png" alt="FEMSA" class="logo">
                         <h1>Onboarding Aprobado</h1>
                     </div>
 
@@ -217,7 +217,7 @@ def send_qr_email(
                         text-align: center;
                         margin-bottom: 30px;
                         padding-bottom: 20px;
-                        border-bottom: 3px solid #D91E18;
+                        border-bottom: 3px solid #FFC600;
                     }}
                     .logo {{
                         max-height: 50px;
@@ -266,7 +266,7 @@ def send_qr_email(
             <body>
                 <div class="container">
                     <div class="header">
-                        <img src="https://www.femsa.com/wp-content/uploads/2023/03/logo-femsa.svg" alt="FEMSA" class="logo">
+                        <img src="https://www.femsa.com/wp-content/uploads/2019/07/femsa.png" alt="FEMSA" class="logo">
                         <h1>Onboarding No Aprobado</h1>
                     </div>
 
