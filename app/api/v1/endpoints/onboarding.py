@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 import smtplib
 import asyncio
+from urllib.parse import quote
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -611,6 +612,12 @@ async def validate_qr_certificate(
                 status_code=status.HTTP_302_FOUND
             )
 
+        # Obtener datos del certificado para mostrarlos en la página
+        full_name = certificate.get('Nombre Completo', 'Usuario')
+        expiration = certificate.get('Vencimiento', '')
+        encoded_name = quote(str(full_name))
+        encoded_expiration = quote(str(expiration))
+
         # Actualizar última validación en background (siempre que se escanee)
         row_id = certificate.get('row_id')
         if row_id:
@@ -623,13 +630,14 @@ async def validate_qr_certificate(
         # Verificar si el certificado es válido (score >= 80 y no expirado)
         if not service.is_certificate_valid(certificate):
             logger.warning(f"Certificate invalid or expired: {id}")
+            redirect_url = f"{REDIRECT_INVALID}?nombre={encoded_name}&vencimiento={encoded_expiration}"
             return RedirectResponse(
-                url=REDIRECT_INVALID,
+                url=redirect_url,
                 status_code=status.HTTP_302_FOUND
             )
 
         # Redirigir a página de certificación válida
-        redirect_url = f"{REDIRECT_VALID}/{id}"
+        redirect_url = f"{REDIRECT_VALID}/{id}?nombre={encoded_name}&vencimiento={encoded_expiration}"
         logger.info(f"Certificate {id} validated successfully, redirecting to {redirect_url}")
 
         return RedirectResponse(
