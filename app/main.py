@@ -3,7 +3,7 @@ from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-from app.api.v1.endpoints import health, smartsheet, analytics, crm, metrics, six_sigma_metrics, auth, posts, seo, onboarding
+from app.api.v1.endpoints import health, smartsheet, analytics, crm, metrics, six_sigma_metrics, auth, posts, seo, onboarding, qr
 from app.core.config import settings
 from app.core.logging_config import setup_logging
 from middleware.request_logging import SixSigmaLoggingMiddleware
@@ -99,6 +99,7 @@ app.include_router(crm.router, prefix='/api/v1/crm', tags=['CRM'])
 app.include_router(metrics.router, prefix='/api/v1/metrics', tags=['Metrics'])
 app.include_router(six_sigma_metrics.router, prefix='/api/v1', tags=['Six Sigma Quality'])
 app.include_router(onboarding.router, prefix='/api/v1/onboarding', tags=['Onboarding Validation'])
+app.include_router(qr.router, prefix='/api/v1/qr', tags=['QR Code Generator'])
 
 @app.get('/')
 async def root():
