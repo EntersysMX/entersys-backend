@@ -98,18 +98,19 @@ def generate_qr_code_base64(
     return base64.b64encode(qr_bytes).decode('utf-8')
 
 
-def generate_validation_url(base_url: str, uuid: str) -> str:
+def generate_validation_url(uuid: str) -> str:
     """
     Genera la URL de validación para el código QR.
 
+    Apunta directamente al frontend que hará la llamada al API.
+
     Args:
-        base_url: URL base de la API (ej: https://api.entersys.mx)
         uuid: UUID del certificado
 
     Returns:
-        URL completa de validación
+        URL completa de validación (frontend)
     """
-    return f"{base_url}/api/v1/onboarding/validate?id={uuid}"
+    return f"https://entersys.mx/certificacion-seguridad/{uuid}"
 
 
 def generate_certificate_qr(uuid: str, base_url: str = "https://api.entersys.mx") -> bytes:
@@ -117,15 +118,16 @@ def generate_certificate_qr(uuid: str, base_url: str = "https://api.entersys.mx"
     Genera el código QR para un certificado de onboarding.
 
     Función de conveniencia que combina la generación de URL y QR.
+    El QR apunta directamente al frontend.
 
     Args:
         uuid: UUID del certificado
-        base_url: URL base de la API
+        base_url: URL base (no usado, mantenido por compatibilidad)
 
     Returns:
         Imagen PNG del QR en bytes
     """
-    validation_url = generate_validation_url(base_url, uuid)
+    validation_url = generate_validation_url(uuid)
 
     # Usar colores corporativos de Entersys
     return generate_qr_code(

@@ -1,5 +1,5 @@
 # app/api/v1/endpoints/onboarding.py
-from fastapi import APIRouter, Query, HTTPException, BackgroundTasks, status, Header, Depends
+from fastapi import APIRouter, Query, HTTPException, BackgroundTasks, status
 from fastapi.responses import RedirectResponse
 import logging
 import uuid
@@ -43,26 +43,6 @@ logger = logging.getLogger(__name__)
 
 # Constantes
 MINIMUM_SCORE = 80.0
-
-
-def verify_onboarding_api_key(x_api_key: str = Header(..., alias="X-API-Key")) -> str:
-    """
-    Verifica el API key para los endpoints de onboarding.
-    """
-    if not settings.ONBOARDING_API_KEY:
-        logger.warning("ONBOARDING_API_KEY not configured, allowing request")
-        return x_api_key
-
-    if x_api_key != settings.ONBOARDING_API_KEY:
-        logger.warning(f"Invalid API key provided for onboarding endpoint")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="API key inválido",
-            headers={"WWW-Authenticate": "ApiKey"}
-        )
-    return x_api_key
-
-
 CERTIFICATE_VALIDITY_DAYS = 365
 API_BASE_URL = "https://api.entersys.mx"
 REDIRECT_VALID = "https://entersys.mx/certificacion-seguridad"
@@ -715,8 +695,7 @@ async def validate_qr_certificate(
 )
 async def get_certificate_info(
     background_tasks: BackgroundTasks,
-    cert_uuid: str,
-    api_key: str = Depends(verify_onboarding_api_key)
+    cert_uuid: str
 ):
     """
     Endpoint para obtener información del certificado de forma dinámica.
