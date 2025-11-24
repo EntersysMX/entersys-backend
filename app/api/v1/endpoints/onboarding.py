@@ -1,5 +1,5 @@
 # app/api/v1/endpoints/onboarding.py
-from fastapi import APIRouter, Query, HTTPException, BackgroundTasks, status
+from fastapi import APIRouter, Query, HTTPException, BackgroundTasks, status, Header, Depends
 from fastapi.responses import RedirectResponse
 import logging
 import uuid
@@ -13,12 +13,24 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 
+from pydantic import BaseModel
 from app.schemas.onboarding_schemas import (
     OnboardingGenerateRequest,
     OnboardingGenerateResponse,
     OnboardingGenerateData,
     OnboardingErrorResponse
 )
+
+
+class CertificateInfoResponse(BaseModel):
+    """Response model for certificate info endpoint"""
+    success: bool
+    status: str  # 'approved', 'not_approved', 'expired', 'not_found'
+    nombre: str
+    vencimiento: str
+    score: float
+    is_expired: bool
+    message: str
 from app.services.onboarding_smartsheet_service import (
     OnboardingSmartsheetService,
     OnboardingSmartsheetServiceError
@@ -31,6 +43,26 @@ logger = logging.getLogger(__name__)
 
 # Constantes
 MINIMUM_SCORE = 80.0
+
+
+def verify_onboarding_api_key(x_api_key: str = Header(..., alias="X-API-Key")) -> str:
+    """
+    Verifica el API key para los endpoints de onboarding.
+    """
+    if not settings.ONBOARDING_API_KEY:
+        logger.warning("ONBOARDING_API_KEY not configured, allowing request")
+        return x_api_key
+
+    if x_api_key != settings.ONBOARDING_API_KEY:
+        logger.warning(f"Invalid API key provided for onboarding endpoint")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key inválido",
+            headers={"WWW-Authenticate": "ApiKey"}
+        )
+    return x_api_key
+
+
 CERTIFICATE_VALIDITY_DAYS = 365
 API_BASE_URL = "https://api.entersys.mx"
 REDIRECT_VALID = "https://entersys.mx/certificacion-seguridad"
@@ -656,4 +688,175 @@ async def validate_qr_certificate(
         return RedirectResponse(
             url=REDIRECT_INVALID,
             status_code=status.HTTP_302_FOUND
+        )
+
+
+@router.get(
+    "/certificate/{cert_uuid}",
+    response_model=CertificateInfoResponse,
+    summary="Get Certificate Information",
+    description="""
+    Returns certificate information for dynamic frontend display.
+
+    **Called by Frontend Page**
+
+    This endpoint:
+    1. Searches for the certificate in Smartsheet by UUID
+    2. Returns all certificate data as JSON
+    3. Updates 'Última Validación' timestamp
+    4. Determines status: approved, not_approved, or expired
+
+    **Status Logic:**
+    - approved: Score >= 80 AND not expired
+    - not_approved: Score < 80
+    - expired: Past expiration date
+    - not_found: Certificate doesn't exist
+    """
+)
+async def get_certificate_info(
+    background_tasks: BackgroundTasks,
+    cert_uuid: str,
+    api_key: str = Depends(verify_onboarding_api_key)
+):
+    """
+    Endpoint para obtener información del certificado de forma dinámica.
+    """
+    logger.info(f"GET /onboarding/certificate/{cert_uuid}")
+
+    # Validar formato UUID
+    try:
+        uuid.UUID(cert_uuid)
+    except ValueError:
+        logger.warning(f"Invalid UUID format: {cert_uuid}")
+        return CertificateInfoResponse(
+            success=False,
+            status="not_found",
+            nombre="",
+            vencimiento="",
+            score=0,
+            is_expired=False,
+            message="UUID inválido"
+        )
+
+    # Obtener SHEET_ID del environment
+    sheet_id = getattr(settings, 'SHEET_ID', None)
+
+    if not sheet_id:
+        logger.error("SHEET_ID not configured")
+        return CertificateInfoResponse(
+            success=False,
+            status="not_found",
+            nombre="",
+            vencimiento="",
+            score=0,
+            is_expired=False,
+            message="Configuración del servidor incompleta"
+        )
+
+    try:
+        service = get_onboarding_service()
+
+        # Buscar certificado en Smartsheet
+        certificate = await service.get_certificate_by_uuid(
+            sheet_id=int(sheet_id),
+            cert_uuid=cert_uuid
+        )
+
+        if not certificate:
+            logger.warning(f"Certificate not found: {cert_uuid}")
+            return CertificateInfoResponse(
+                success=False,
+                status="not_found",
+                nombre="",
+                vencimiento="",
+                score=0,
+                is_expired=False,
+                message="Certificado no encontrado"
+            )
+
+        # Extraer datos del certificado
+        full_name = certificate.get('Nombre Completo', 'Usuario')
+        expiration_str = certificate.get('Vencimiento', '')
+        score_value = certificate.get('Score', 0)
+
+        # Parsear score
+        try:
+            score = float(str(score_value).replace('%', '').strip()) if score_value else 0
+        except (ValueError, TypeError):
+            score = 0
+
+        # Parsear fecha de vencimiento y verificar si expiró
+        is_expired = False
+        formatted_expiration = expiration_str
+
+        if expiration_str:
+            expiration_date = None
+            for date_format in ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y', '%m/%d/%y', '%d/%m/%y']:
+                try:
+                    expiration_date = datetime.strptime(str(expiration_str), date_format)
+                    # Handle 2-digit years
+                    if expiration_date.year < 100:
+                        expiration_date = expiration_date.replace(year=expiration_date.year + 2000)
+                    break
+                except ValueError:
+                    continue
+
+            if expiration_date:
+                is_expired = expiration_date.date() < datetime.utcnow().date()
+                formatted_expiration = expiration_date.strftime('%d/%m/%Y')
+
+        # Actualizar última validación en background
+        row_id = certificate.get('row_id')
+        if row_id:
+            background_tasks.add_task(
+                update_last_validation_background,
+                int(sheet_id),
+                row_id
+            )
+            logger.info(f"Scheduled last validation update for row {row_id}")
+
+        # Determinar estado del certificado
+        if is_expired:
+            status_str = "expired"
+            message = "Tu certificación de Seguridad Industrial ha expirado y NO está autorizado para ingresar a las instalaciones. Por favor contacta a tu supervisor para renovar tu certificación."
+        elif score < 80:
+            status_str = "not_approved"
+            message = "Tu certificación de Seguridad Industrial no pudo ser validada. La información proporcionada o los requisitos del curso no cumplen con los estándares mínimos de seguridad establecidos."
+        else:
+            status_str = "approved"
+            message = "Tu certificación de Seguridad Industrial ha sido validada correctamente. Has cumplido con todos los requisitos del curso y tu información ha sido aprobada conforme a los estándares de seguridad establecidos."
+
+        logger.info(f"Certificate {cert_uuid} info retrieved: status={status_str}, score={score}, expired={is_expired}")
+
+        return CertificateInfoResponse(
+            success=True,
+            status=status_str,
+            nombre=str(full_name),
+            vencimiento=formatted_expiration,
+            score=score,
+            is_expired=is_expired,
+            message=message
+        )
+
+    except OnboardingSmartsheetServiceError as e:
+        logger.error(f"Smartsheet error getting certificate info: {str(e)}")
+        return CertificateInfoResponse(
+            success=False,
+            status="not_found",
+            nombre="",
+            vencimiento="",
+            score=0,
+            is_expired=False,
+            message=f"Error de Smartsheet: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error getting certificate info: {str(e)}")
+        return CertificateInfoResponse(
+            success=False,
+            status="not_found",
+            nombre="",
+            vencimiento="",
+            score=0,
+            is_expired=False,
+            message=f"Error interno: {str(e)}"
         )
