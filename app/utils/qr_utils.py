@@ -14,14 +14,14 @@ logger = logging.getLogger(__name__)
 LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "entersys_symbol_black.png")
 
 
-def add_logo_to_qr(qr_img: Image.Image, logo_path: str, logo_size_ratio: float = 0.25) -> Image.Image:
+def add_logo_to_qr(qr_img: Image.Image, logo_path: str, logo_size_ratio: float = 0.22) -> Image.Image:
     """
-    Agrega un logo en el centro del código QR.
+    Agrega un logo en el centro del código QR con diseño profesional.
 
     Args:
         qr_img: Imagen del QR code
-        logo_path: Ruta al archivo del logo (SVG or PNG)
-        logo_size_ratio: Ratio del tamaño del logo respecto al QR (default 0.25 = 25%)
+        logo_path: Ruta al archivo del logo
+        logo_size_ratio: Ratio del tamaño del logo respecto al QR (default 0.22 = 22%)
 
     Returns:
         Imagen QR con logo en el centro
@@ -41,29 +41,43 @@ def add_logo_to_qr(qr_img: Image.Image, logo_path: str, logo_size_ratio: float =
         # Redimensionar logo manteniendo aspect ratio
         logo.thumbnail((logo_max_size, logo_max_size), Image.Resampling.LANCZOS)
 
-        # Crear un fondo blanco para el logo (para mejor contraste)
-        logo_bg_size = int(logo_max_size * 1.1)
-        logo_bg = Image.new('RGB', (logo_bg_size, logo_bg_size), 'white')
+        # Crear fondo blanco circular con borde para el logo (estilo profesional)
+        # Tamaño del fondo: 15% más grande que el logo
+        bg_size = int(logo_max_size * 1.15)
+
+        # Crear máscara circular
+        mask = Image.new('L', (bg_size, bg_size), 0)
+        from PIL import ImageDraw
+        draw = ImageDraw.Draw(mask)
+        draw.ellipse((0, 0, bg_size, bg_size), fill=255)
+
+        # Crear fondo blanco circular
+        logo_bg = Image.new('RGBA', (bg_size, bg_size), (255, 255, 255, 0))
+        white_circle = Image.new('RGBA', (bg_size, bg_size), (255, 255, 255, 255))
+        logo_bg.paste(white_circle, (0, 0), mask)
 
         # Calcular posición centrada del logo en el background
-        logo_pos_x = (logo_bg_size - logo.size[0]) // 2
-        logo_pos_y = (logo_bg_size - logo.size[1]) // 2
+        logo_pos_x = (bg_size - logo.size[0]) // 2
+        logo_pos_y = (bg_size - logo.size[1]) // 2
 
         # Pegar logo en el fondo blanco
         logo_bg.paste(logo, (logo_pos_x, logo_pos_y), logo if logo.mode == 'RGBA' else None)
 
-        # Convertir QR a RGB si es necesario
-        if qr_img.mode != 'RGB':
-            qr_img = qr_img.convert('RGB')
+        # Convertir QR a RGBA para composición
+        if qr_img.mode != 'RGBA':
+            qr_img = qr_img.convert('RGBA')
 
         # Calcular posición centrada en el QR
-        qr_pos_x = (qr_width - logo_bg_size) // 2
-        qr_pos_y = (qr_height - logo_bg_size) // 2
+        qr_pos_x = (qr_width - bg_size) // 2
+        qr_pos_y = (qr_height - bg_size) // 2
 
         # Pegar logo+background en el centro del QR
-        qr_img.paste(logo_bg, (qr_pos_x, qr_pos_y))
+        qr_img.paste(logo_bg, (qr_pos_x, qr_pos_y), logo_bg)
 
-        logger.info(f"Logo added to QR successfully")
+        # Convertir de vuelta a RGB para PNG
+        qr_img = qr_img.convert('RGB')
+
+        logger.info(f"Logo added to QR successfully with professional styling")
         return qr_img
 
     except Exception as e:
