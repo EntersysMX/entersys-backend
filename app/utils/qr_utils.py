@@ -10,24 +10,24 @@ import os
 
 logger = logging.getLogger(__name__)
 
-# Path to Entersys logo
-LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "entersys_logo.png")
+# Path to Entersys black symbol logo
+LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "entersys_symbol_black.png")
 
 
-def add_logo_to_qr(qr_img: Image.Image, logo_path: str, logo_size_ratio: float = 0.3) -> Image.Image:
+def add_logo_to_qr(qr_img: Image.Image, logo_path: str, logo_size_ratio: float = 0.25) -> Image.Image:
     """
     Agrega un logo en el centro del código QR.
 
     Args:
         qr_img: Imagen del QR code
-        logo_path: Ruta al archivo del logo
-        logo_size_ratio: Ratio del tamaño del logo respecto al QR (default 0.3 = 30%)
+        logo_path: Ruta al archivo del logo (SVG or PNG)
+        logo_size_ratio: Ratio del tamaño del logo respecto al QR (default 0.25 = 25%)
 
     Returns:
         Imagen QR con logo en el centro
     """
     try:
-        # Abrir logo
+        # Abrir logo PNG
         logo = Image.open(logo_path)
 
         # Convertir a RGBA si no lo está
