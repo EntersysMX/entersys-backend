@@ -933,7 +933,10 @@ async def submit_exam(request: ExamSubmitRequest):
         # Construir celdas
         cells = []
 
-        # Datos personales
+        # Columnas que tienen fórmulas en Smartsheet y NO se pueden escribir
+        FORMULA_COLUMNS = {"Score", "Estado"}
+
+        # Datos personales (excluir columnas con fórmulas)
         personal_data = {
             "Nombre Completo": request.nombre_completo,
             "RFC Colaborador": request.rfc_colaborador,
@@ -941,13 +944,11 @@ async def submit_exam(request: ExamSubmitRequest):
             "NSS de colaborador": request.nss or "",
             "Tipo de Servicio": request.tipo_servicio or "",
             "Proveedor": request.proveedor,
-            "Email": request.email,
-            "Score": calculated_score,
-            "Estado": estado
+            "Email": request.email
         }
 
         for column_name, value in personal_data.items():
-            if column_name in service._reverse_column_map:
+            if column_name in service._reverse_column_map and column_name not in FORMULA_COLUMNS:
                 cells.append({
                     'column_id': service._reverse_column_map[column_name],
                     'value': value
