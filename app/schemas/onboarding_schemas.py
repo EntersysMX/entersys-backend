@@ -115,5 +115,88 @@ class OnboardingErrorResponse(BaseModel):
         }
 
 
+# ============================================
+# Schemas para el formulario de examen público
+# ============================================
+
+class ExamAnswer(BaseModel):
+    """Respuesta individual de una pregunta del examen."""
+    question_id: int = Field(..., description="ID de la pregunta (1-10)", ge=1, le=10)
+    answer: str = Field(..., description="Respuesta seleccionada")
+    is_correct: bool = Field(..., description="Si la respuesta es correcta")
+
+
+class ExamSubmitRequest(BaseModel):
+    """
+    Schema para la solicitud de envío del examen de seguridad.
+    """
+    # Datos personales
+    nombre_completo: str = Field(..., description="Nombre completo", min_length=2, max_length=255)
+    rfc_colaborador: str = Field(..., description="RFC del colaborador", min_length=10, max_length=13)
+    rfc_empresa: Optional[str] = Field(None, description="RFC de la empresa", max_length=13)
+    nss: Optional[str] = Field(None, description="NSS del colaborador", max_length=11)
+    tipo_servicio: Optional[str] = Field(None, description="Tipo de servicio")
+    proveedor: str = Field(..., description="Nombre del proveedor", min_length=2, max_length=255)
+    email: EmailStr = Field(..., description="Correo electrónico")
+
+    # Respuestas del examen (10 preguntas)
+    answers: list[ExamAnswer] = Field(..., description="Lista de 10 respuestas", min_length=10, max_length=10)
+
+    # Score calculado en frontend (se recalcula en backend)
+    score_frontend: float = Field(..., description="Score calculado en frontend", ge=0, le=100)
+
+    @field_validator('nombre_completo')
+    @classmethod
+    def validate_nombre(cls, v: str) -> str:
+        return v.strip().title()
+
+    @field_validator('rfc_colaborador', 'rfc_empresa')
+    @classmethod
+    def validate_rfc(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            return v.strip().upper()
+        return v
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "nombre_completo": "Juan Pérez García",
+                "rfc_colaborador": "PEGJ850101XXX",
+                "rfc_empresa": "EMP850101XXX",
+                "nss": "12345678901",
+                "tipo_servicio": "Mantenimiento",
+                "proveedor": "Servicios Industriales SA",
+                "email": "juan.perez@empresa.com",
+                "answers": [
+                    {"question_id": 1, "answer": "Prevención, Protección, Preparación", "is_correct": True},
+                    {"question_id": 2, "answer": "Correcta", "is_correct": True}
+                ],
+                "score_frontend": 80.0
+            }
+        }
+
+
+class ExamSubmitResponse(BaseModel):
+    """
+    Schema para la respuesta del envío del examen.
+    """
+    success: bool = Field(..., description="Si el envío fue exitoso")
+    approved: bool = Field(..., description="Si el examen fue aprobado (score >= 80)")
+    score: float = Field(..., description="Score final calculado")
+    message: str = Field(..., description="Mensaje descriptivo")
+    smartsheet_row_id: Optional[int] = Field(None, description="ID de fila en Smartsheet si se insertó")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": True,
+                "approved": True,
+                "score": 90.0,
+                "message": "Examen enviado exitosamente. Has aprobado con 90%.",
+                "smartsheet_row_id": 123456789
+            }
+        }
+
+
 # Rebuild models to handle forward references
 OnboardingGenerateResponse.model_rebuild()

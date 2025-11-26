@@ -18,7 +18,9 @@ from app.schemas.onboarding_schemas import (
     OnboardingGenerateRequest,
     OnboardingGenerateResponse,
     OnboardingGenerateData,
-    OnboardingErrorResponse
+    OnboardingErrorResponse,
+    ExamSubmitRequest,
+    ExamSubmitResponse
 )
 
 
@@ -838,4 +840,177 @@ async def get_certificate_info(
             score=0,
             is_expired=False,
             message=f"Error interno: {str(e)}"
+        )
+
+
+# ============================================
+# Endpoint para el formulario público de examen
+# ============================================
+
+# Mapeo de columnas de Smartsheet para el examen
+EXAM_COLUMN_MAPPING = {
+    "Nombre Completo": "nombre_completo",
+    "RFC Colaborador": "rfc_colaborador",
+    "RFC Empresa": "rfc_empresa",
+    "NSS de colaborador": "nss",
+    "Tipo de Servicio": "tipo_servicio",
+    "Proveedor": "proveedor",
+    "Email": "email",
+    "Score": "score",
+    "Estado": "estado"
+}
+
+# Preguntas del examen con sus respuestas correctas
+EXAM_QUESTIONS = {
+    1: {"column": "Las siglas PPP corresponden a:", "correct": "Prevención, Protección, Preparación"},
+    2: {"column": "Poder reconocer peligros y riesgos...", "correct": ""},  # Se define en frontend
+    3: {"column": "Son tres elementos del equipo...", "correct": ""},
+    4: {"column": "Tres acciones que debemos realizar...", "correct": ""},
+    5: {"column": "Es un incidente que tuvo graves consecuencias...", "correct": ""},
+    6: {"column": "Estado patológico o condición...", "correct": ""},
+    7: {"column": "Establecer zonas de seguridad...", "correct": ""},
+    8: {"column": "Es la principal prioridad de la compañía", "correct": ""},
+    9: {"column": "Ejemplo de incidente", "correct": ""},
+    10: {"column": "Gravedad y frecuencia...", "correct": ""}
+}
+
+
+@router.post(
+    "/submit-exam",
+    response_model=ExamSubmitResponse,
+    summary="Enviar examen de seguridad",
+    description="""
+    Endpoint público para enviar el examen de certificación de seguridad.
+
+    **Flujo:**
+    1. Recibe datos personales y respuestas del examen
+    2. Calcula el score basado en respuestas correctas
+    3. Inserta una nueva fila en Smartsheet con todos los datos
+    4. Retorna si aprobó o no (score >= 80)
+
+    **Nota:** Este endpoint NO genera UUID ni QR. Eso lo maneja Smartsheet Bridge.
+    """
+)
+async def submit_exam(request: ExamSubmitRequest):
+    """
+    Endpoint para enviar el examen de seguridad y registrar en Smartsheet.
+    """
+    logger.info(
+        f"POST /onboarding/submit-exam - "
+        f"email={request.email}, nombre={request.nombre_completo}"
+    )
+
+    try:
+        # 1. Calcular score basado en respuestas correctas
+        correct_count = sum(1 for answer in request.answers if answer.is_correct)
+        calculated_score = (correct_count / 10) * 100
+
+        logger.info(f"Score calculado: {calculated_score}% ({correct_count}/10 correctas)")
+
+        # 2. Determinar si aprobó
+        approved = calculated_score >= 80
+        estado = "Aprobado" if approved else "No Aprobado"
+
+        # 3. Preparar datos para Smartsheet
+        sheet_id = getattr(settings, 'SHEET_ID', None)
+
+        if not sheet_id:
+            logger.error("SHEET_ID not configured")
+            return ExamSubmitResponse(
+                success=False,
+                approved=False,
+                score=calculated_score,
+                message="Error de configuración del servidor",
+                smartsheet_row_id=None
+            )
+
+        # 4. Construir fila para Smartsheet
+        service = OnboardingSmartsheetService()
+
+        # Obtener mapeo de columnas
+        await service._get_column_maps(int(sheet_id))
+
+        # Construir celdas
+        cells = []
+
+        # Datos personales
+        personal_data = {
+            "Nombre Completo": request.nombre_completo,
+            "RFC Colaborador": request.rfc_colaborador,
+            "RFC Empresa": request.rfc_empresa or "",
+            "NSS de colaborador": request.nss or "",
+            "Tipo de Servicio": request.tipo_servicio or "",
+            "Proveedor": request.proveedor,
+            "Email": request.email,
+            "Score": calculated_score,
+            "Estado": estado
+        }
+
+        for column_name, value in personal_data.items():
+            if column_name in service._reverse_column_map:
+                cells.append({
+                    'column_id': service._reverse_column_map[column_name],
+                    'value': value
+                })
+
+        # Respuestas del examen (Validacion p1 ... p10)
+        for answer in request.answers:
+            validation_column = f"Validacion p{answer.question_id}"
+            validation_value = "correcta" if answer.is_correct else "incorrecta"
+
+            if validation_column in service._reverse_column_map:
+                cells.append({
+                    'column_id': service._reverse_column_map[validation_column],
+                    'value': validation_value
+                })
+
+            # También guardar la respuesta dada en la columna de la pregunta
+            question_info = EXAM_QUESTIONS.get(answer.question_id, {})
+            question_column = question_info.get("column", "")
+
+            if question_column and question_column in service._reverse_column_map:
+                cells.append({
+                    'column_id': service._reverse_column_map[question_column],
+                    'value': answer.answer
+                })
+
+        # 5. Insertar fila en Smartsheet
+        import smartsheet
+        new_row = smartsheet.models.Row()
+        new_row.to_bottom = True
+        new_row.cells = [smartsheet.models.Cell(cell) for cell in cells]
+
+        response = service.client.Sheets.add_rows(int(sheet_id), [new_row])
+
+        if response.message == 'SUCCESS' and response.result:
+            row_id = response.result[0].id
+            logger.info(f"Fila insertada en Smartsheet: row_id={row_id}")
+
+            message = f"Examen enviado exitosamente. {'¡Felicidades! Has aprobado' if approved else 'No aprobaste'} con {calculated_score:.0f}%."
+
+            return ExamSubmitResponse(
+                success=True,
+                approved=approved,
+                score=calculated_score,
+                message=message,
+                smartsheet_row_id=row_id
+            )
+        else:
+            logger.error(f"Error insertando fila en Smartsheet: {response.message}")
+            return ExamSubmitResponse(
+                success=False,
+                approved=approved,
+                score=calculated_score,
+                message="Error al guardar en el sistema. Por favor intenta de nuevo.",
+                smartsheet_row_id=None
+            )
+
+    except Exception as e:
+        logger.error(f"Error en submit-exam: {str(e)}")
+        return ExamSubmitResponse(
+            success=False,
+            approved=False,
+            score=0,
+            message=f"Error interno: {str(e)}",
+            smartsheet_row_id=None
         )
