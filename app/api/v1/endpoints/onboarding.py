@@ -124,7 +124,7 @@ def send_qr_email(
                         border-bottom: 3px solid #FFC600;
                     }}
                     .logo {{
-                        max-height: 50px;
+                        max-height: 80px;
                         margin-bottom: 15px;
                     }}
                     h1 {{
@@ -235,7 +235,7 @@ def send_qr_email(
                         border-bottom: 3px solid #FFC600;
                     }}
                     .logo {{
-                        max-height: 50px;
+                        max-height: 80px;
                         margin-bottom: 15px;
                     }}
                     h1 {{

@@ -38,9 +38,6 @@ class Settings(BaseSettings):
     MIDDLEWARE_API_KEY: str
     SHEET_ID: int = 7060277951418244  # ID de la hoja de Smartsheet para onboarding
 
-    # --- Onboarding API Security ---
-    ONBOARDING_API_KEY: str = ""  # API Key para endpoints de onboarding desde frontend
-
     # --- Email/SMTP Settings ---
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
