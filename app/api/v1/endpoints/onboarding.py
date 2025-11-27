@@ -860,18 +860,19 @@ EXAM_COLUMN_MAPPING = {
     "Estado": "estado"
 }
 
-# Preguntas del examen con sus respuestas correctas
-EXAM_QUESTIONS = {
-    1: {"column": "Las siglas PPP corresponden a:", "correct": "Prevención, Protección, Preparación"},
-    2: {"column": "Poder reconocer peligros y riesgos...", "correct": ""},  # Se define en frontend
-    3: {"column": "Son tres elementos del equipo...", "correct": ""},
-    4: {"column": "Tres acciones que debemos realizar...", "correct": ""},
-    5: {"column": "Es un incidente que tuvo graves consecuencias...", "correct": ""},
-    6: {"column": "Estado patológico o condición...", "correct": ""},
-    7: {"column": "Establecer zonas de seguridad...", "correct": ""},
-    8: {"column": "Es la principal prioridad de la compañía", "correct": ""},
-    9: {"column": "Ejemplo de incidente", "correct": ""},
-    10: {"column": "Gravedad y frecuencia...", "correct": ""}
+# Mapeo de preguntas del examen a columnas de Smartsheet
+# Usando los IDs de columna directamente para evitar problemas de encoding
+EXAM_QUESTION_COLUMNS = {
+    1: {"column_id": 2130769435381636, "column_name": "Las siglas PPP corresponden a:"},
+    2: {"column_id": 6634369062752132, "column_name": "Poder reconocer peligros y riesgos para reducirlos"},
+    3: {"column_id": 4382569249066884, "column_name": "Son tres elementos del equipo de protección person"},
+    4: {"column_id": 8886168876437380, "column_name": "Tres acciones que debemos realizar en caso de emer"},
+    5: {"column_id": 90075854229380, "column_name": "Es un incidente que tuvo graves consecuencias o im"},
+    6: {"column_id": 4593675481599876, "column_name": "Estado patológico o condición, inidentificable, ad"},
+    7: {"column_id": 2341875667914628, "column_name": "Establecer zonas de seguridad ¿es parte de las Reg"},
+    8: {"column_id": 6845475295285124, "column_name": "Es la principal prioridad de la compañía"},
+    9: {"column_id": 1215975761072004, "column_name": "Ejemplo de incidente"},
+    10: {"column_id": 5719575388442500, "column_name": "Gravedad y frecuencia con que puede ocurrir un inc"}
 }
 
 
@@ -927,8 +928,20 @@ async def submit_exam(request: ExamSubmitRequest):
         # 4. Construir fila para Smartsheet
         service = OnboardingSmartsheetService()
 
-        # Obtener mapeo de columnas
+        # Obtener mapeo de columnas (forzar recarga limpiando cache)
+        service._column_map = {}
+        service._reverse_column_map = {}
         await service._get_column_maps(int(sheet_id))
+
+        # Log de columnas de validación disponibles para debug
+        validation_cols = [k for k in service._reverse_column_map.keys() if 'Validacion' in k or 'validacion' in k.lower()]
+        logger.info(f"Smartsheet validation columns: {validation_cols}")
+
+        # Verificar que Validacion P2 existe
+        if 'Validacion P2' in service._reverse_column_map:
+            logger.info(f"Validacion P2 column ID: {service._reverse_column_map['Validacion P2']}")
+        else:
+            logger.warning("Validacion P2 NOT FOUND in column map!")
 
         # Construir celdas
         cells = []
@@ -954,33 +967,35 @@ async def submit_exam(request: ExamSubmitRequest):
                     'value': value
                 })
 
-        # Respuestas del examen (Validacion p1 ... p10)
+        # Respuestas del examen - solo guardar las respuestas textuales
+        # Las columnas de validación tienen formato condicional y se calculan automáticamente
+        # Usamos los IDs de columna directamente para evitar problemas de encoding
         for answer in request.answers:
-            validation_column = f"Validacion p{answer.question_id}"
-            validation_value = "correcta" if answer.is_correct else "incorrecta"
+            question_mapping = EXAM_QUESTION_COLUMNS.get(answer.question_id)
 
-            if validation_column in service._reverse_column_map:
+            if not question_mapping:
+                logger.warning(f"No mapping found for question {answer.question_id}")
+                continue
+
+            # Guardar la respuesta textual usando el column_id directamente
+            column_id = question_mapping.get("column_id")
+            if column_id:
                 cells.append({
-                    'column_id': service._reverse_column_map[validation_column],
-                    'value': validation_value
-                })
-
-            # También guardar la respuesta dada en la columna de la pregunta
-            question_info = EXAM_QUESTIONS.get(answer.question_id, {})
-            question_column = question_info.get("column", "")
-
-            if question_column and question_column in service._reverse_column_map:
-                cells.append({
-                    'column_id': service._reverse_column_map[question_column],
+                    'column_id': column_id,
                     'value': answer.answer
                 })
+                logger.info(f"Q{answer.question_id} (col_id={column_id}): {answer.answer}")
+            else:
+                logger.warning(f"No column_id found for Q{answer.question_id}")
 
-        # 5. Insertar fila en Smartsheet
+        # 5. Insertar fila en Smartsheet con datos personales y respuestas
         import smartsheet
+
         new_row = smartsheet.models.Row()
         new_row.to_bottom = True
         new_row.cells = [smartsheet.models.Cell(cell) for cell in cells]
 
+        logger.info(f"Insertando fila con {len(cells)} celdas")
         response = service.client.Sheets.add_rows(int(sheet_id), [new_row])
 
         if response.message == 'SUCCESS' and response.result:
