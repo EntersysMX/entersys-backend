@@ -3,7 +3,7 @@ from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-from app.api.v1.endpoints import health, smartsheet, analytics, crm, metrics, six_sigma_metrics, auth, posts, seo, onboarding, qr, video_security
+from app.api.v1.endpoints import health, smartsheet, analytics, crm, metrics, six_sigma_metrics, auth, posts, seo, onboarding, qr, video_security, support
 from app.core.config import settings
 from app.core.logging_config import setup_logging
 from middleware.request_logging import SixSigmaLoggingMiddleware
@@ -28,6 +28,7 @@ app = FastAPI(
     - **Metrics**: Metricas de rendimiento y monitoreo
     - **Six Sigma**: Metricas de calidad empresarial y compliance
     - **Onboarding**: Sistema de validacion QR para certificaciones de seguridad
+    - **Support**: Portal de soporte y chatbot inteligente (MD070)
     
     **Authentication Features:**
     - Login tradicional con email/password
@@ -101,6 +102,7 @@ app.include_router(six_sigma_metrics.router, prefix='/api/v1', tags=['Six Sigma 
 app.include_router(onboarding.router, prefix='/api/v1/onboarding', tags=['Onboarding Validation'])
 app.include_router(qr.router, prefix='/api/v1/qr', tags=['QR Code Generator'])
 app.include_router(video_security.router, prefix='/api', tags=['Video Security'])
+app.include_router(support.router, prefix='/api/v1/support', tags=['Support & Chatbot'])
 
 @app.get('/')
 async def root():
@@ -112,7 +114,7 @@ async def root():
         'authentication': 'jwt_oauth_enabled',
         'docs': '/docs',
         'available_services': [
-            'health', 'auth', 'posts', 'smartsheet', 'analytics', 'crm', 'metrics', 'six-sigma'
+            'health', 'auth', 'posts', 'smartsheet', 'analytics', 'crm', 'metrics', 'six-sigma', 'support'
         ],
         'authentication_endpoints': {
             'login_email': '/api/v1/auth/token',
