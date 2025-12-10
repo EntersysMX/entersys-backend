@@ -43,8 +43,8 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     SMTP_USER: str = "armando.cortes@entersys.mx"
     SMTP_PASSWORD: str = ""
-    SMTP_FROM_EMAIL: str = "armando.cortes@entersys.mx"
-    SMTP_FROM_NAME: str = "Entersys Admin"
+    SMTP_FROM_EMAIL: str = "no-reply@entersys.mx"
+    SMTP_FROM_NAME: str = "Entersys"
     FRONTEND_URL: str = "https://admin.entersys.mx"
 
     @computed_field
