@@ -372,6 +372,262 @@ async def update_last_validation_background(
         logger.error(f"Background task failed: {str(e)}")
 
 
+def send_third_attempt_alert_email(
+    colaborador_data: dict,
+    attempts_info: dict
+) -> bool:
+    """
+    Envía un correo de alerta cuando un colaborador alcanza su tercer intento fallido.
+
+    Args:
+        colaborador_data: Datos del colaborador (nombre, rfc, email, proveedor, etc.)
+        attempts_info: Información de los intentos (total, aprobados, fallidos, registros)
+
+    Returns:
+        True si el email se envió exitosamente
+    """
+    try:
+        # Crear mensaje
+        msg = MIMEMultipart('mixed')
+        msg['Subject'] = f"⚠️ ALERTA: Tercer Intento Fallido - {colaborador_data.get('nombre_completo', 'Colaborador')}"
+        msg['From'] = "Entersys <no-reply@entersys.mx>"
+        msg['To'] = "armando.cortes@entersys.mx"
+
+        # Generar tabla de historial de intentos
+        historial_html = ""
+        for i, registro in enumerate(attempts_info.get('registros', []), 1):
+            estado_class = "approved" if registro.get('is_approved') else "failed"
+            estado_text = "Aprobado" if registro.get('is_approved') else "No Aprobado"
+            historial_html += f"""
+            <tr class="{estado_class}">
+                <td>{i}</td>
+                <td>{registro.get('score', 'N/A')}</td>
+                <td>{estado_text}</td>
+            </tr>
+            """
+
+        # Contenido HTML del email
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 700px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    background-color: #f9fafb;
+                }}
+                .container {{
+                    background-color: #ffffff;
+                    border-radius: 8px;
+                    padding: 30px;
+                    margin: 20px 0;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }}
+                .header {{
+                    text-align: center;
+                    margin-bottom: 30px;
+                    padding-bottom: 20px;
+                    border-bottom: 3px solid #DC2626;
+                }}
+                .alert-icon {{
+                    font-size: 48px;
+                    margin-bottom: 10px;
+                }}
+                h1 {{
+                    color: #DC2626;
+                    font-size: 24px;
+                    margin: 0;
+                }}
+                .info-box {{
+                    background-color: #FEF2F2;
+                    border-left: 4px solid #DC2626;
+                    padding: 15px;
+                    margin: 20px 0;
+                    border-radius: 4px;
+                }}
+                .colaborador-info {{
+                    background-color: #F3F4F6;
+                    padding: 20px;
+                    border-radius: 8px;
+                    margin: 20px 0;
+                }}
+                .colaborador-info h3 {{
+                    margin-top: 0;
+                    color: #374151;
+                    border-bottom: 2px solid #D1D5DB;
+                    padding-bottom: 10px;
+                }}
+                .colaborador-info p {{
+                    margin: 8px 0;
+                }}
+                .colaborador-info strong {{
+                    display: inline-block;
+                    width: 150px;
+                    color: #6B7280;
+                }}
+                table {{
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 20px 0;
+                }}
+                th, td {{
+                    padding: 12px;
+                    text-align: left;
+                    border-bottom: 1px solid #E5E7EB;
+                }}
+                th {{
+                    background-color: #F3F4F6;
+                    font-weight: 600;
+                    color: #374151;
+                }}
+                tr.approved td {{
+                    color: #059669;
+                }}
+                tr.failed td {{
+                    color: #DC2626;
+                }}
+                .summary {{
+                    display: flex;
+                    justify-content: space-around;
+                    margin: 20px 0;
+                    text-align: center;
+                }}
+                .summary-item {{
+                    padding: 15px 25px;
+                    border-radius: 8px;
+                }}
+                .summary-item.total {{
+                    background-color: #EFF6FF;
+                    color: #1D4ED8;
+                }}
+                .summary-item.approved {{
+                    background-color: #ECFDF5;
+                    color: #059669;
+                }}
+                .summary-item.failed {{
+                    background-color: #FEF2F2;
+                    color: #DC2626;
+                }}
+                .summary-item .number {{
+                    font-size: 32px;
+                    font-weight: bold;
+                }}
+                .summary-item .label {{
+                    font-size: 12px;
+                    text-transform: uppercase;
+                }}
+                .footer {{
+                    text-align: center;
+                    margin-top: 30px;
+                    padding-top: 20px;
+                    border-top: 1px solid #e5e7eb;
+                    font-size: 12px;
+                    color: #6b7280;
+                }}
+                .action-needed {{
+                    background-color: #FEF3C7;
+                    border-left: 4px solid #F59E0B;
+                    padding: 15px;
+                    margin: 20px 0;
+                    border-radius: 4px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div class="alert-icon">⚠️</div>
+                    <h1>Alerta: Tercer Intento Fallido</h1>
+                </div>
+
+                <div class="info-box">
+                    <p><strong>El siguiente colaborador ha alcanzado su tercer intento fallido</strong> en el examen de certificación de Seguridad Industrial.</p>
+                </div>
+
+                <div class="colaborador-info">
+                    <h3>Datos del Colaborador</h3>
+                    <p><strong>Nombre:</strong> {colaborador_data.get('nombre_completo', 'N/A')}</p>
+                    <p><strong>RFC:</strong> {colaborador_data.get('rfc_colaborador', 'N/A')}</p>
+                    <p><strong>Email:</strong> {colaborador_data.get('email', 'N/A')}</p>
+                    <p><strong>Proveedor:</strong> {colaborador_data.get('proveedor', 'N/A')}</p>
+                    <p><strong>Tipo de Servicio:</strong> {colaborador_data.get('tipo_servicio', 'N/A')}</p>
+                    <p><strong>RFC Empresa:</strong> {colaborador_data.get('rfc_empresa', 'N/A')}</p>
+                    <p><strong>NSS:</strong> {colaborador_data.get('nss', 'N/A')}</p>
+                </div>
+
+                <h3>Resumen de Intentos</h3>
+                <div class="summary">
+                    <div class="summary-item total">
+                        <div class="number">{attempts_info.get('total', 0) + 1}</div>
+                        <div class="label">Total Intentos</div>
+                    </div>
+                    <div class="summary-item approved">
+                        <div class="number">{attempts_info.get('aprobados', 0)}</div>
+                        <div class="label">Aprobados</div>
+                    </div>
+                    <div class="summary-item failed">
+                        <div class="number">{attempts_info.get('fallidos', 0) + 1}</div>
+                        <div class="label">Fallidos</div>
+                    </div>
+                </div>
+
+                <h3>Historial de Intentos</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Score</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {historial_html}
+                        <tr class="failed">
+                            <td>{attempts_info.get('total', 0) + 1} (Actual)</td>
+                            <td>{colaborador_data.get('score', 'N/A')}%</td>
+                            <td>No Aprobado</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="action-needed">
+                    <p><strong>Acción Requerida:</strong></p>
+                    <p>Se recomienda contactar al colaborador o su supervisor para determinar los siguientes pasos, ya que ha fallado el examen en múltiples ocasiones.</p>
+                </div>
+
+                <div class="footer">
+                    <p>Este es un correo automático generado por el sistema de Onboarding de Seguridad.</p>
+                    <p>&copy; {datetime.utcnow().year} FEMSA - Entersys. Todos los derechos reservados.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Adjuntar contenido HTML
+        html_part = MIMEText(html_content, 'html')
+        msg.attach(html_part)
+
+        # Enviar email
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+            server.starttls()
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.send_message(msg)
+
+        logger.info(f"Third attempt alert email sent for RFC {colaborador_data.get('rfc_colaborador')}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Error sending third attempt alert email: {str(e)}")
+        return False
+
+
 async def update_smartsheet_certificate_background(
     sheet_id: int,
     row_id: int,
@@ -886,19 +1142,21 @@ EXAM_QUESTION_COLUMNS = {
     **Flujo:**
     1. Recibe datos personales y respuestas del examen
     2. Calcula el score basado en respuestas correctas
-    3. Inserta una nueva fila en Smartsheet con todos los datos
-    4. Retorna si aprobó o no (score >= 80)
+    3. Valida intentos previos por RFC del colaborador
+    4. Inserta una nueva fila en Smartsheet con todos los datos
+    5. Si es el tercer intento fallido, envía alerta por correo
+    6. Retorna si aprobó o no (score >= 80)
 
     **Nota:** Este endpoint NO genera UUID ni QR. Eso lo maneja Smartsheet Bridge.
     """
 )
-async def submit_exam(request: ExamSubmitRequest):
+async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTasks):
     """
     Endpoint para enviar el examen de seguridad y registrar en Smartsheet.
     """
     logger.info(
         f"POST /onboarding/submit-exam - "
-        f"email={request.email}, nombre={request.nombre_completo}"
+        f"email={request.email}, nombre={request.nombre_completo}, rfc={request.rfc_colaborador}"
     )
 
     try:
@@ -927,6 +1185,22 @@ async def submit_exam(request: ExamSubmitRequest):
 
         # 4. Construir fila para Smartsheet
         service = OnboardingSmartsheetService()
+
+        # 4.1 Validar intentos previos por RFC antes de insertar
+        attempts_info = None
+        if request.rfc_colaborador:
+            try:
+                attempts_info = await service.get_attempts_by_rfc(
+                    int(sheet_id),
+                    request.rfc_colaborador
+                )
+                logger.info(
+                    f"RFC {request.rfc_colaborador}: {attempts_info['total']} intentos previos, "
+                    f"{attempts_info['fallidos']} fallidos"
+                )
+            except Exception as e:
+                logger.warning(f"Error checking RFC attempts (continuing anyway): {str(e)}")
+                attempts_info = {"total": 0, "aprobados": 0, "fallidos": 0, "registros": []}
 
         # Obtener mapeo de columnas (forzar recarga limpiando cache)
         service._column_map = {}
@@ -1001,6 +1275,43 @@ async def submit_exam(request: ExamSubmitRequest):
         if response.message == 'SUCCESS' and response.result:
             row_id = response.result[0].id
             logger.info(f"Fila insertada en Smartsheet: row_id={row_id}")
+
+            # 6. Verificar si es el tercer intento fallido y enviar alerta
+            if not approved and attempts_info:
+                # Contar intentos fallidos previos + este intento actual
+                total_fallidos = attempts_info.get('fallidos', 0) + 1  # +1 por el intento actual
+
+                logger.info(
+                    f"RFC {request.rfc_colaborador}: Total intentos fallidos (incluyendo actual): {total_fallidos}"
+                )
+
+                # Si es exactamente el tercer intento fallido, enviar alerta
+                if total_fallidos == 3:
+                    logger.warning(
+                        f"⚠️ TERCER INTENTO FALLIDO detectado para RFC {request.rfc_colaborador}"
+                    )
+
+                    # Preparar datos del colaborador para el correo
+                    colaborador_data = {
+                        "nombre_completo": request.nombre_completo,
+                        "rfc_colaborador": request.rfc_colaborador,
+                        "email": request.email,
+                        "proveedor": request.proveedor,
+                        "tipo_servicio": request.tipo_servicio or "",
+                        "rfc_empresa": request.rfc_empresa or "",
+                        "nss": request.nss or "",
+                        "score": calculated_score
+                    }
+
+                    # Enviar correo de alerta en background para no bloquear la respuesta
+                    background_tasks.add_task(
+                        send_third_attempt_alert_email,
+                        colaborador_data,
+                        attempts_info
+                    )
+                    logger.info(
+                        f"Correo de alerta de tercer intento programado para RFC {request.rfc_colaborador}"
+                    )
 
             message = f"Examen enviado exitosamente. {'¡Felicidades! Has aprobado' if approved else 'No aprobaste'} con {calculated_score:.0f}%."
 

@@ -336,6 +336,106 @@ class OnboardingSmartsheetService:
             self.logger.error(f"Error validating certificate: {str(e)}")
             return False
 
+    async def get_attempts_by_rfc(
+        self,
+        sheet_id: int,
+        rfc_colaborador: str
+    ) -> Dict[str, Any]:
+        """
+        Cuenta los intentos aprobados y fallidos de un colaborador por su RFC.
+
+        Args:
+            sheet_id: ID de la hoja
+            rfc_colaborador: RFC del colaborador a buscar
+
+        Returns:
+            Diccionario con conteo de intentos:
+            {
+                "total": int,
+                "aprobados": int,
+                "fallidos": int,
+                "registros": List[Dict] - Lista con datos de cada intento
+            }
+        """
+        try:
+            await self._get_column_maps(sheet_id)
+
+            # Obtener la hoja completa
+            sheet = self.client.Sheets.get_sheet(sheet_id)
+
+            # Contadores
+            total = 0
+            aprobados = 0
+            fallidos = 0
+            registros = []
+
+            # Buscar todas las filas con el mismo RFC
+            for row in sheet.rows:
+                row_data = {}
+
+                for cell in row.cells:
+                    column_name = self._column_map.get(cell.column_id, f"Col_{cell.column_id}")
+                    cell_value = cell.display_value if cell.display_value is not None else cell.value
+                    row_data[column_name] = cell_value
+
+                # Verificar si es el RFC buscado
+                rfc_value = row_data.get("RFC Colaborador", "")
+                if rfc_value and str(rfc_value).strip().upper() == str(rfc_colaborador).strip().upper():
+                    total += 1
+                    row_data['row_id'] = row.id
+
+                    # Verificar estado (aprobado o no)
+                    estado = row_data.get("Estado", "")
+                    score_value = row_data.get("Score", 0)
+
+                    # Determinar si aprobó por score o estado
+                    is_approved = False
+                    if estado:
+                        is_approved = str(estado).lower() in ["aprobado", "approved"]
+                    elif score_value:
+                        try:
+                            score = float(str(score_value).replace('%', '').strip())
+                            is_approved = score >= 80.0
+                        except (ValueError, TypeError):
+                            pass
+
+                    if is_approved:
+                        aprobados += 1
+                    else:
+                        fallidos += 1
+
+                    registros.append({
+                        "row_id": row.id,
+                        "nombre": row_data.get("Nombre Completo", ""),
+                        "email": row_data.get("Email", ""),
+                        "score": row_data.get("Score", ""),
+                        "estado": estado,
+                        "is_approved": is_approved
+                    })
+
+            self.logger.info(
+                f"RFC {rfc_colaborador}: {total} intentos totales, "
+                f"{aprobados} aprobados, {fallidos} fallidos"
+            )
+
+            return {
+                "total": total,
+                "aprobados": aprobados,
+                "fallidos": fallidos,
+                "registros": registros
+            }
+
+        except smartsheet.exceptions.ApiError as e:
+            self.logger.error(f"Smartsheet API error getting attempts by RFC: {str(e)}")
+            raise OnboardingSmartsheetServiceError(
+                f"Smartsheet API error: {str(e)}"
+            )
+        except Exception as e:
+            self.logger.error(f"Error getting attempts by RFC: {str(e)}")
+            raise OnboardingSmartsheetServiceError(
+                f"Error getting attempts by RFC: {str(e)}"
+            )
+
     async def health_check(self) -> Dict[str, Any]:
         """
         Verifica que el servicio de Smartsheet esté funcionando.
