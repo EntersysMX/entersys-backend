@@ -121,7 +121,7 @@ class OnboardingErrorResponse(BaseModel):
 
 class ExamAnswer(BaseModel):
     """Respuesta individual de una pregunta del examen."""
-    question_id: int = Field(..., description="ID de la pregunta (1-10)", ge=1, le=10)
+    question_id: int = Field(..., description="ID de la pregunta (1-30)", ge=1, le=30)
     answer: str = Field(..., description="Respuesta seleccionada")
     is_correct: bool = Field(..., description="Si la respuesta es correcta")
 
