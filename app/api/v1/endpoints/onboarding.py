@@ -1137,7 +1137,7 @@ EXAM_QUESTION_COLUMNS = {
     3. Valida intentos previos por RFC del colaborador
     4. Inserta una nueva fila en Smartsheet con todos los datos
     5. Si es el tercer intento fallido, envía alerta por correo
-    6. Retorna si aprobó o no (score >= 80)
+    6. Retorna si aprobó o no (score >= 85)
 
     **Nota:** Este endpoint NO genera UUID ni QR. Eso lo maneja Smartsheet Bridge.
     """
@@ -1159,7 +1159,7 @@ async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTa
         logger.info(f"Score calculado: {calculated_score}% ({correct_count}/10 correctas)")
 
         # 2. Determinar si aprobó
-        approved = calculated_score >= 80
+        approved = calculated_score >= 85
         estado = "Aprobado" if approved else "No Aprobado"
 
         # 3. Preparar datos para Smartsheet
