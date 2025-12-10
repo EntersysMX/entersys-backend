@@ -1117,18 +1117,10 @@ EXAM_COLUMN_MAPPING = {
 }
 
 # Mapeo de preguntas del examen a columnas de Smartsheet
-# Usando los IDs de columna directamente para evitar problemas de encoding
+# Las columnas en Smartsheet se llaman Pregunta_1 a Pregunta_30
+# El question_id del frontend corresponde directamente al número de pregunta
 EXAM_QUESTION_COLUMNS = {
-    1: {"column_id": 2130769435381636, "column_name": "Las siglas PPP corresponden a:"},
-    2: {"column_id": 6634369062752132, "column_name": "Poder reconocer peligros y riesgos para reducirlos"},
-    3: {"column_id": 4382569249066884, "column_name": "Son tres elementos del equipo de protección person"},
-    4: {"column_id": 8886168876437380, "column_name": "Tres acciones que debemos realizar en caso de emer"},
-    5: {"column_id": 90075854229380, "column_name": "Es un incidente que tuvo graves consecuencias o im"},
-    6: {"column_id": 4593675481599876, "column_name": "Estado patológico o condición, inidentificable, ad"},
-    7: {"column_id": 2341875667914628, "column_name": "Establecer zonas de seguridad ¿es parte de las Reg"},
-    8: {"column_id": 6845475295285124, "column_name": "Es la principal prioridad de la compañía"},
-    9: {"column_id": 1215975761072004, "column_name": "Ejemplo de incidente"},
-    10: {"column_id": 5719575388442500, "column_name": "Gravedad y frecuencia con que puede ocurrir un inc"}
+    i: {"column_name": f"Pregunta_{i}"} for i in range(1, 31)
 }
 
 
@@ -1251,16 +1243,17 @@ async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTa
                 logger.warning(f"No mapping found for question {answer.question_id}")
                 continue
 
-            # Guardar la respuesta textual usando el column_id directamente
-            column_id = question_mapping.get("column_id")
-            if column_id:
+            # Guardar la respuesta textual usando el nombre de columna (Pregunta_X)
+            column_name = question_mapping.get("column_name")
+            if column_name and column_name in service._reverse_column_map:
+                column_id = service._reverse_column_map[column_name]
                 cells.append({
                     'column_id': column_id,
                     'value': answer.answer
                 })
-                logger.info(f"Q{answer.question_id} (col_id={column_id}): {answer.answer}")
+                logger.info(f"Q{answer.question_id} ({column_name}): {answer.answer}")
             else:
-                logger.warning(f"No column_id found for Q{answer.question_id}")
+                logger.warning(f"Column '{column_name}' not found in Smartsheet for Q{answer.question_id}")
 
         # 5. Insertar fila en Smartsheet con datos personales y respuestas
         import smartsheet
