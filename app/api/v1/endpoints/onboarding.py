@@ -391,7 +391,7 @@ def send_third_attempt_alert_email(
         msg = MIMEMultipart('mixed')
         msg['Subject'] = f"⚠️ ALERTA: Tercer Intento Fallido - {colaborador_data.get('nombre_completo', 'Colaborador')}"
         msg['From'] = "Entersys <no-reply@entersys.mx>"
-        msg['To'] = "armando.cortes@entersys.mx"
+        msg['To'] = "rodrigo.dalay@entersys.mx"
 
         # Generar tabla de historial de intentos
         historial_html = ""
