@@ -804,3 +804,70 @@ class OnboardingSmartsheetService:
         except Exception as e:
             self.logger.error(f"Error saving exam results for RFC {rfc}: {str(e)}")
             raise OnboardingSmartsheetServiceError(f"Error saving exam results: {str(e)}")
+
+    async def update_certificate_data(
+        self,
+        row_id: int,
+        cert_uuid: str,
+        expiration_date: datetime
+    ) -> bool:
+        """
+        Actualiza una fila de la hoja de Registros con los datos del certificado generado.
+
+        Args:
+            row_id: ID de la fila a actualizar
+            cert_uuid: UUID del certificado generado
+            expiration_date: Fecha de vencimiento del certificado
+
+        Returns:
+            True si la actualización fue exitosa
+        """
+        try:
+            await self._get_registros_column_maps()
+
+            # Formatear fecha de vencimiento
+            vencimiento_str = expiration_date.strftime('%Y-%m-%d')
+
+            # Construir las celdas a actualizar
+            cells = [
+                {
+                    "column_id": self._registros_reverse_map[self.COLUMN_UUID],
+                    "value": cert_uuid
+                },
+                {
+                    "column_id": self._registros_reverse_map[self.COLUMN_VENCIMIENTO],
+                    "value": vencimiento_str
+                },
+                {
+                    "column_id": self._registros_reverse_map[self.COLUMN_ENVIO_CERT],
+                    "value": True
+                }
+            ]
+
+            # Crear objeto de fila para actualización
+            row_to_update = smartsheet.models.Row()
+            row_to_update.id = row_id
+            row_to_update.cells = [smartsheet.models.Cell(cell) for cell in cells]
+
+            # Ejecutar actualización
+            response = self.client.Sheets.update_rows(self.SHEET_REGISTROS_ID, [row_to_update])
+
+            if response.message == 'SUCCESS':
+                self.logger.info(
+                    f"Successfully updated row {row_id} with certificate UUID={cert_uuid}, "
+                    f"Vencimiento={vencimiento_str}"
+                )
+                return True
+            else:
+                self.logger.error(f"Unexpected response updating certificate data: {response.message}")
+                return False
+
+        except KeyError as e:
+            self.logger.error(f"Column not found in Registros sheet: {str(e)}")
+            raise OnboardingSmartsheetServiceError(f"Column not found: {str(e)}")
+        except smartsheet.exceptions.ApiError as e:
+            self.logger.error(f"Smartsheet API error updating certificate data: {str(e)}")
+            raise OnboardingSmartsheetServiceError(f"Smartsheet API error: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Error updating certificate data for row {row_id}: {str(e)}")
+            raise OnboardingSmartsheetServiceError(f"Error updating certificate data: {str(e)}")

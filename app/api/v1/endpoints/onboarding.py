@@ -681,6 +681,84 @@ async def update_smartsheet_certificate_background(
         logger.error(f"Background task failed for row {row_id}: {str(e)}")
 
 
+async def generate_certificate_internal(
+    row_id: int,
+    full_name: str,
+    email: str,
+    score: float,
+    background_tasks: BackgroundTasks
+) -> dict:
+    """
+    Función interna para generar certificado QR.
+    Llamada desde submit-exam cuando el colaborador aprueba.
+
+    Args:
+        row_id: ID de la fila en Smartsheet
+        full_name: Nombre completo del usuario
+        email: Email del usuario
+        score: Puntuación obtenida
+        background_tasks: BackgroundTasks para envío de email
+
+    Returns:
+        Dict con success, cert_uuid, error
+    """
+    logger.info(
+        f"generate_certificate_internal - "
+        f"row_id={row_id}, email={email}, score={score}"
+    )
+
+    try:
+        # 1. Generar UUID seguro
+        cert_uuid = str(uuid.uuid4())
+        logger.info(f"Generated certificate UUID: {cert_uuid}")
+
+        # 2. Calcular fecha de vencimiento
+        expiration_date = datetime.utcnow() + timedelta(days=CERTIFICATE_VALIDITY_DAYS)
+
+        # 3. Generar código QR
+        qr_image = generate_certificate_qr(cert_uuid, API_BASE_URL)
+
+        # 4. Actualizar Smartsheet con UUID y fecha de vencimiento
+        service = OnboardingSmartsheetService()
+        try:
+            await service.update_certificate_data(
+                row_id=row_id,
+                cert_uuid=cert_uuid,
+                expiration_date=expiration_date
+            )
+            logger.info(f"Smartsheet actualizado con certificado UUID={cert_uuid}")
+        except Exception as e:
+            logger.error(f"Error actualizando Smartsheet con certificado: {str(e)}")
+            # Continuar de todas formas para enviar el email
+
+        # 5. Enviar email con QR en background
+        background_tasks.add_task(
+            send_qr_email,
+            email,
+            full_name,
+            qr_image,
+            expiration_date,
+            cert_uuid,
+            True,  # is_valid (siempre True porque solo se llama cuando aprueba)
+            score
+        )
+        logger.info(f"Email de certificado programado para {email}")
+
+        return {
+            "success": True,
+            "cert_uuid": cert_uuid,
+            "expiration_date": expiration_date.strftime('%Y-%m-%d'),
+            "email_scheduled": True
+        }
+
+    except Exception as e:
+        logger.error(f"Error en generate_certificate_internal: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
 @router.post(
     "/generate",
     response_model=OnboardingGenerateResponse,
@@ -1553,7 +1631,36 @@ async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTa
         attempts_remaining = max(0, MAX_ATTEMPTS - new_attempts)
         can_retry = not is_approved and attempts_remaining > 0
 
-        # 5. Verificar si es el tercer intento fallido
+        # 5. Si APROBÓ: Llamar a la lógica de /generate para crear certificado
+        cert_uuid = None
+        if is_approved:
+            row_id = save_result.get("registros_row_id")
+
+            if row_id:
+                logger.info(f"Examen APROBADO para RFC {request.rfc_colaborador} - Generando certificado...")
+
+                # Llamar a la lógica de generación de certificado
+                try:
+                    generate_result = await generate_certificate_internal(
+                        row_id=row_id,
+                        full_name=request.nombre_completo,
+                        email=request.email,
+                        score=overall_score,
+                        background_tasks=background_tasks
+                    )
+
+                    if generate_result.get("success"):
+                        cert_uuid = generate_result.get("cert_uuid")
+                        logger.info(f"Certificado generado exitosamente: UUID={cert_uuid}")
+                    else:
+                        logger.error(f"Error generando certificado: {generate_result.get('error')}")
+
+                except Exception as e:
+                    logger.error(f"Error llamando a generate_certificate_internal: {str(e)}")
+            else:
+                logger.error(f"No se pudo obtener row_id para generar certificado")
+
+        # 6. Verificar si es el tercer intento fallido
         if not is_approved and new_attempts >= MAX_ATTEMPTS:
             logger.warning(
                 f"⚠️ TERCER INTENTO FALLIDO detectado para RFC {request.rfc_colaborador}"
@@ -1586,7 +1693,7 @@ async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTa
             )
             logger.info(f"Alerta de tercer intento programada para RFC {request.rfc_colaborador}")
 
-        # 6. Construir mensaje de respuesta
+        # 7. Construir mensaje de respuesta
         if is_approved:
             message = "¡Felicidades! Has aprobado el examen. Recibirás tu certificación por correo."
         else:
