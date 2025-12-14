@@ -1,7 +1,7 @@
 # app/services/onboarding_smartsheet_service.py
 import smartsheet
 import logging
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 from datetime import datetime, timedelta
 
 from app.core.config import settings
@@ -16,24 +16,47 @@ class OnboardingSmartsheetService:
     """
     Servicio especializado para operaciones de Smartsheet relacionadas con el
     sistema de validación de onboarding dinámico.
+
+    Maneja 2 hojas:
+    - SHEET_REGISTROS (4716003029110660): Registro principal con estatus del examen
+    - SHEET_RESPUESTAS (4715605744635780): Bitácora de respuestas (Correcto/Incorrecto)
     """
 
-    # Nombres de columnas en Smartsheet (ajustar según la hoja real)
-    COLUMN_CERT_UUID = "CERT_UUID"
-    COLUMN_EXPIRATION = "Vencimiento"
-    COLUMN_QR_SENT = "QR Enviado"
-    COLUMN_LAST_VALIDATION = "Última Validación"
-    COLUMN_FULL_NAME = "Nombre Completo"
-    COLUMN_EMAIL = "Email"
-    COLUMN_SCORE = "Score"
-    COLUMN_CERT_VALID = "Certificado Válido"
+    # IDs de las hojas de Smartsheet
+    SHEET_REGISTROS_ID = 4716003029110660  # Registros_OnBoarding (estatus, intentos, resultado)
+    SHEET_RESPUESTAS_ID = 4715605744635780  # Respuestas_Examen_OnBoarding (bitácora de respuestas)
+
+    # Nombres de columnas en hoja de Registros
+    COLUMN_RFC = "RFC"
+    COLUMN_FECHA_EXAMEN = "FechaExamen"
+    COLUMN_TIPO = "Tipo"
+    COLUMN_SECCION1 = "Seccion1"  # Score sección Seguridad (1-10)
+    COLUMN_SECCION2 = "Seccion2"  # Score sección Inocuidad (11-20)
+    COLUMN_SECCION3 = "Seccion3"  # Score sección Ambiental (21-30)
+    COLUMN_RESULTADO = "Resultado"  # Aprobado/Reprobado
+    COLUMN_UUID = "UUID"
+    COLUMN_ENVIO_CERT = "Envio Certificado"
+    COLUMN_VENCIMIENTO = "Vencimiento"
+    COLUMN_INTENTOS = "Intentos"
+    COLUMN_ESTATUS_EXAMEN = "Estatus Examen"  # 1 = puede continuar
+    COLUMN_NOTA = "Nota"
+
+    # Nombres de columnas en hoja de Respuestas (Bitácora)
+    COLUMN_RESP_RFC = "RFC"
+    COLUMN_RESP_FECHA = "FechaExamen"
+    COLUMN_RESP_SECCION = "Seccion"
+    # R1 a R30 para las respuestas (Correcto/Incorrecto)
+
+    # Constantes
+    MAX_ATTEMPTS = 3
+    MIN_SECTION_SCORE = 80.0
 
     def __init__(self, sheet_id: Optional[int] = None):
         """
         Inicializa el servicio de Smartsheet para Onboarding.
 
         Args:
-            sheet_id: ID de la hoja de Smartsheet (opcional, puede usar SHEET_ID del env)
+            sheet_id: ID de la hoja de Smartsheet (opcional, para compatibilidad)
         """
         self.logger = logging.getLogger(__name__)
         self.sheet_id = sheet_id
@@ -48,9 +71,13 @@ class OnboardingSmartsheetService:
                 f"Error initializing Smartsheet client: {str(e)}"
             )
 
-        # Cache de mapeo columna ID -> nombre
+        # Cache de mapeo columna ID -> nombre (por hoja)
         self._column_map: Dict[int, str] = {}
         self._reverse_column_map: Dict[str, int] = {}
+        self._registros_column_map: Dict[int, str] = {}
+        self._registros_reverse_map: Dict[str, int] = {}
+        self._respuestas_column_map: Dict[int, str] = {}
+        self._respuestas_reverse_map: Dict[str, int] = {}
 
     async def _get_column_maps(self, sheet_id: int) -> None:
         """
@@ -461,3 +488,319 @@ class OnboardingSmartsheetService:
                 "service": "onboarding_smartsheet",
                 "timestamp": datetime.utcnow().isoformat()
             }
+
+    # ============================================
+    # NUEVOS MÉTODOS PARA SISTEMA DE 3 SECCIONES
+    # ============================================
+
+    async def _get_registros_column_maps(self) -> None:
+        """Obtiene y cachea el mapeo de columnas para la hoja de Registros."""
+        if self._registros_column_map:
+            return
+
+        try:
+            sheet = self.client.Sheets.get_sheet(self.SHEET_REGISTROS_ID)
+            for column in sheet.columns:
+                self._registros_column_map[column.id] = column.title
+                self._registros_reverse_map[column.title] = column.id
+            self.logger.debug(f"Loaded {len(self._registros_column_map)} columns for Registros sheet")
+        except Exception as e:
+            self.logger.error(f"Error loading Registros column maps: {str(e)}")
+            raise OnboardingSmartsheetServiceError(f"Error loading column maps: {str(e)}")
+
+    async def _get_respuestas_column_maps(self) -> None:
+        """Obtiene y cachea el mapeo de columnas para la hoja de Respuestas."""
+        if self._respuestas_column_map:
+            return
+
+        try:
+            sheet = self.client.Sheets.get_sheet(self.SHEET_RESPUESTAS_ID)
+            for column in sheet.columns:
+                self._respuestas_column_map[column.id] = column.title
+                self._respuestas_reverse_map[column.title] = column.id
+            self.logger.debug(f"Loaded {len(self._respuestas_column_map)} columns for Respuestas sheet")
+        except Exception as e:
+            self.logger.error(f"Error loading Respuestas column maps: {str(e)}")
+            raise OnboardingSmartsheetServiceError(f"Error loading column maps: {str(e)}")
+
+    async def check_exam_status(self, rfc: str) -> Dict[str, Any]:
+        """
+        Verifica el estatus del examen para un RFC en la hoja de Registros.
+
+        Args:
+            rfc: RFC del colaborador
+
+        Returns:
+            Diccionario con:
+            - can_take_exam: bool
+            - attempts_used: int
+            - attempts_remaining: int
+            - is_approved: bool
+            - is_expired: bool (si aprobó pero ya pasó 1 año)
+            - last_attempt_date: str o None
+            - section_results: dict o None
+            - row_id: int o None (si existe registro)
+            - cert_uuid: str o None (UUID del certificado si aprobó)
+            - expiration_date: str o None (fecha de vencimiento del certificado)
+            - full_name: str o None (nombre del colaborador)
+            - email: str o None (email del colaborador)
+        """
+        try:
+            await self._get_registros_column_maps()
+
+            sheet = self.client.Sheets.get_sheet(self.SHEET_REGISTROS_ID)
+            rfc_upper = rfc.strip().upper()
+
+            # Buscar registro existente con este RFC
+            found_row = None
+            for row in sheet.rows:
+                row_data = {}
+                for cell in row.cells:
+                    col_name = self._registros_column_map.get(cell.column_id, "")
+                    row_data[col_name] = cell.display_value if cell.display_value is not None else cell.value
+
+                row_rfc = str(row_data.get(self.COLUMN_RFC, "")).strip().upper()
+                if row_rfc == rfc_upper:
+                    found_row = {"row_id": row.id, "data": row_data}
+                    break
+
+            # Si no existe registro, puede hacer el examen (primer intento)
+            if not found_row:
+                self.logger.info(f"RFC {rfc}: No existe registro, primer intento permitido")
+                return {
+                    "can_take_exam": True,
+                    "attempts_used": 0,
+                    "attempts_remaining": self.MAX_ATTEMPTS,
+                    "is_approved": False,
+                    "is_expired": False,
+                    "last_attempt_date": None,
+                    "section_results": None,
+                    "row_id": None,
+                    "estatus_examen": None,
+                    "cert_uuid": None,
+                    "expiration_date": None,
+                    "full_name": None,
+                    "email": None
+                }
+
+            # Extraer datos del registro
+            data = found_row["data"]
+            row_id = found_row["row_id"]
+
+            # Verificar Estatus Examen
+            estatus_examen = data.get(self.COLUMN_ESTATUS_EXAMEN)
+            estatus_str = str(estatus_examen).strip() if estatus_examen else ""
+
+            # Verificar Resultado (Aprobado/Reprobado)
+            resultado = str(data.get(self.COLUMN_RESULTADO, "")).strip().lower()
+            is_approved = resultado == "aprobado"
+
+            # Obtener UUID del certificado si existe
+            cert_uuid = data.get(self.COLUMN_UUID)
+            cert_uuid_str = str(cert_uuid).strip() if cert_uuid else None
+
+            # Obtener intentos
+            intentos_str = str(data.get(self.COLUMN_INTENTOS, "0")).strip()
+            try:
+                intentos = int(intentos_str) if intentos_str else 0
+            except ValueError:
+                intentos = 0
+
+            # Obtener fecha del último examen
+            fecha_examen = data.get(self.COLUMN_FECHA_EXAMEN)
+            fecha_str = str(fecha_examen) if fecha_examen else None
+
+            # Obtener fecha de vencimiento
+            vencimiento = data.get(self.COLUMN_VENCIMIENTO)
+            vencimiento_str = str(vencimiento) if vencimiento else None
+
+            # Verificar si el certificado ha expirado (pasó 1 año)
+            is_expired = False
+            if is_approved and vencimiento_str:
+                # Intentar parsear la fecha de vencimiento
+                expiration_date = None
+                for date_format in ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y', '%m/%d/%y', '%d/%m/%y']:
+                    try:
+                        expiration_date = datetime.strptime(str(vencimiento_str), date_format)
+                        if expiration_date.year < 100:
+                            expiration_date = expiration_date.replace(year=expiration_date.year + 2000)
+                        break
+                    except ValueError:
+                        continue
+
+                if expiration_date:
+                    is_expired = expiration_date.date() < datetime.utcnow().date()
+                    self.logger.info(f"RFC {rfc}: Vencimiento={expiration_date.date()}, Hoy={datetime.utcnow().date()}, Expirado={is_expired}")
+
+            # Obtener resultados por sección
+            section_results = {
+                "Seccion1": data.get(self.COLUMN_SECCION1),
+                "Seccion2": data.get(self.COLUMN_SECCION2),
+                "Seccion3": data.get(self.COLUMN_SECCION3)
+            }
+
+            # Determinar si puede hacer el examen:
+            # 1. Si ya está aprobado Y no ha expirado, NO puede (debe renovar después del año)
+            # 2. Si ya está aprobado PERO expiró, SI puede (renovación después del año)
+            # 3. Si Estatus Examen != 1, NO puede
+            # 4. Si intentos >= 3, NO puede
+            can_take = False
+            if is_approved and not is_expired:
+                self.logger.info(f"RFC {rfc}: Ya está APROBADO y vigente, no puede re-tomar examen")
+            elif is_approved and is_expired:
+                can_take = True
+                self.logger.info(f"RFC {rfc}: Aprobado pero EXPIRADO, puede renovar certificación")
+            elif estatus_str != "1":
+                self.logger.info(f"RFC {rfc}: Estatus Examen = '{estatus_str}' (no es 1), no puede continuar")
+            elif intentos >= self.MAX_ATTEMPTS:
+                self.logger.info(f"RFC {rfc}: Ya usó {intentos} intentos (máximo {self.MAX_ATTEMPTS})")
+            else:
+                can_take = True
+                self.logger.info(f"RFC {rfc}: Puede hacer examen, intentos={intentos}")
+
+            return {
+                "can_take_exam": can_take,
+                "attempts_used": intentos,
+                "attempts_remaining": max(0, self.MAX_ATTEMPTS - intentos),
+                "is_approved": is_approved,
+                "is_expired": is_expired,
+                "last_attempt_date": fecha_str,
+                "section_results": section_results,
+                "row_id": row_id,
+                "estatus_examen": estatus_str,
+                "cert_uuid": cert_uuid_str,
+                "expiration_date": vencimiento_str,
+                "full_name": data.get("Nombre Completo"),
+                "email": data.get("Email")
+            }
+
+        except Exception as e:
+            self.logger.error(f"Error checking exam status for RFC {rfc}: {str(e)}")
+            raise OnboardingSmartsheetServiceError(f"Error checking exam status: {str(e)}")
+
+    async def save_exam_results(
+        self,
+        rfc: str,
+        section_scores: Dict[str, float],
+        is_approved: bool,
+        answers_results: List[Dict[str, Any]],
+        existing_row_id: Optional[int] = None,
+        current_attempts: int = 0
+    ) -> Dict[str, Any]:
+        """
+        Guarda los resultados del examen en ambas hojas de Smartsheet.
+
+        Args:
+            rfc: RFC del colaborador
+            section_scores: Dict con scores de cada sección {"Seccion1": 80, "Seccion2": 90, "Seccion3": 70}
+            is_approved: Si aprobó todas las secciones
+            answers_results: Lista de 30 dicts con {"question_id": 1, "is_correct": True/False}
+            existing_row_id: ID de fila existente en Registros (si ya hay registro)
+            current_attempts: Intentos actuales antes de este intento
+
+        Returns:
+            Dict con row_ids de ambas hojas
+        """
+        try:
+            await self._get_registros_column_maps()
+            await self._get_respuestas_column_maps()
+
+            new_attempts = current_attempts + 1
+            fecha_hoy = datetime.utcnow().strftime('%Y-%m-%d')
+            resultado_str = "Aprobado" if is_approved else "Reprobado"
+
+            # 1. ACTUALIZAR O INSERTAR en hoja de Registros
+            registros_row_id = None
+
+            if existing_row_id:
+                # Actualizar fila existente
+                cells = [
+                    {"column_id": self._registros_reverse_map[self.COLUMN_FECHA_EXAMEN], "value": fecha_hoy},
+                    {"column_id": self._registros_reverse_map[self.COLUMN_SECCION1], "value": section_scores.get("Seccion1", 0)},
+                    {"column_id": self._registros_reverse_map[self.COLUMN_SECCION2], "value": section_scores.get("Seccion2", 0)},
+                    {"column_id": self._registros_reverse_map[self.COLUMN_SECCION3], "value": section_scores.get("Seccion3", 0)},
+                    {"column_id": self._registros_reverse_map[self.COLUMN_RESULTADO], "value": resultado_str},
+                    {"column_id": self._registros_reverse_map[self.COLUMN_INTENTOS], "value": new_attempts},
+                ]
+
+                # Si reprobó y usó todos los intentos, cambiar Estatus Examen a 0
+                if not is_approved and new_attempts >= self.MAX_ATTEMPTS:
+                    cells.append({
+                        "column_id": self._registros_reverse_map[self.COLUMN_ESTATUS_EXAMEN],
+                        "value": "0"
+                    })
+
+                row_to_update = smartsheet.models.Row()
+                row_to_update.id = existing_row_id
+                row_to_update.cells = [smartsheet.models.Cell(cell) for cell in cells]
+
+                response = self.client.Sheets.update_rows(self.SHEET_REGISTROS_ID, [row_to_update])
+                if response.message == 'SUCCESS':
+                    registros_row_id = existing_row_id
+                    self.logger.info(f"Updated Registros row {existing_row_id} for RFC {rfc}")
+                else:
+                    self.logger.error(f"Error updating Registros row: {response.message}")
+
+            else:
+                # Insertar nueva fila
+                cells = [
+                    {"column_id": self._registros_reverse_map[self.COLUMN_RFC], "value": rfc.upper()},
+                    {"column_id": self._registros_reverse_map[self.COLUMN_FECHA_EXAMEN], "value": fecha_hoy},
+                    {"column_id": self._registros_reverse_map[self.COLUMN_SECCION1], "value": section_scores.get("Seccion1", 0)},
+                    {"column_id": self._registros_reverse_map[self.COLUMN_SECCION2], "value": section_scores.get("Seccion2", 0)},
+                    {"column_id": self._registros_reverse_map[self.COLUMN_SECCION3], "value": section_scores.get("Seccion3", 0)},
+                    {"column_id": self._registros_reverse_map[self.COLUMN_RESULTADO], "value": resultado_str},
+                    {"column_id": self._registros_reverse_map[self.COLUMN_INTENTOS], "value": new_attempts},
+                    {"column_id": self._registros_reverse_map[self.COLUMN_ESTATUS_EXAMEN], "value": "1"},  # Inicialmente puede continuar
+                ]
+
+                new_row = smartsheet.models.Row()
+                new_row.to_bottom = True
+                new_row.cells = [smartsheet.models.Cell(cell) for cell in cells]
+
+                response = self.client.Sheets.add_rows(self.SHEET_REGISTROS_ID, [new_row])
+                if response.message == 'SUCCESS' and response.result:
+                    registros_row_id = response.result[0].id
+                    self.logger.info(f"Inserted new Registros row {registros_row_id} for RFC {rfc}")
+                else:
+                    self.logger.error(f"Error inserting Registros row: {response.message}")
+
+            # 2. INSERTAR en hoja de Respuestas (Bitácora)
+            # Guardar cada respuesta como Correcto/Incorrecto
+            respuestas_cells = [
+                {"column_id": self._respuestas_reverse_map[self.COLUMN_RESP_RFC], "value": rfc.upper()},
+                {"column_id": self._respuestas_reverse_map[self.COLUMN_RESP_FECHA], "value": fecha_hoy},
+            ]
+
+            # Agregar resultados de cada respuesta (R1 a R30)
+            for answer in answers_results:
+                q_id = answer.get("question_id")
+                is_correct = answer.get("is_correct", False)
+                col_name = f"R{q_id}"
+
+                if col_name in self._respuestas_reverse_map:
+                    respuestas_cells.append({
+                        "column_id": self._respuestas_reverse_map[col_name],
+                        "value": "Correcto" if is_correct else "Incorrecto"
+                    })
+
+            new_respuesta_row = smartsheet.models.Row()
+            new_respuesta_row.to_bottom = True
+            new_respuesta_row.cells = [smartsheet.models.Cell(cell) for cell in respuestas_cells]
+
+            respuestas_response = self.client.Sheets.add_rows(self.SHEET_RESPUESTAS_ID, [new_respuesta_row])
+            respuestas_row_id = None
+            if respuestas_response.message == 'SUCCESS' and respuestas_response.result:
+                respuestas_row_id = respuestas_response.result[0].id
+                self.logger.info(f"Inserted Respuestas row {respuestas_row_id} for RFC {rfc}")
+
+            return {
+                "registros_row_id": registros_row_id,
+                "respuestas_row_id": respuestas_row_id,
+                "new_attempts": new_attempts,
+                "resultado": resultado_str
+            }
+
+        except Exception as e:
+            self.logger.error(f"Error saving exam results for RFC {rfc}: {str(e)}")
+            raise OnboardingSmartsheetServiceError(f"Error saving exam results: {str(e)}")

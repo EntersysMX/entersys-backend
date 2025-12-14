@@ -20,7 +20,9 @@ from app.schemas.onboarding_schemas import (
     OnboardingGenerateData,
     OnboardingErrorResponse,
     ExamSubmitRequest,
-    ExamSubmitResponse
+    ExamSubmitResponse,
+    ExamStatusResponse,
+    SectionResult
 )
 
 
@@ -45,10 +47,19 @@ logger = logging.getLogger(__name__)
 
 # Constantes
 MINIMUM_SCORE = 80.0
+MINIMUM_SECTION_SCORE = 80.0  # Mínimo 80% en cada sección para aprobar
 CERTIFICATE_VALIDITY_DAYS = 365
+MAX_ATTEMPTS = 3
 API_BASE_URL = "https://api.entersys.mx"
 REDIRECT_VALID = "https://entersys.mx/certificacion-seguridad"
 REDIRECT_INVALID = "https://entersys.mx/access-denied"
+
+# Definición de secciones del examen
+EXAM_SECTIONS = {
+    1: {"name": "Seguridad", "questions": range(1, 11)},    # Preguntas 1-10
+    2: {"name": "Inocuidad", "questions": range(11, 21)},   # Preguntas 11-20
+    3: {"name": "Ambiental", "questions": range(21, 31)}    # Preguntas 21-30
+}
 
 
 def get_onboarding_service() -> OnboardingSmartsheetService:
@@ -1103,48 +1114,379 @@ async def get_certificate_info(
 # Endpoint para el formulario público de examen
 # ============================================
 
-# Mapeo de columnas de Smartsheet para el examen
-EXAM_COLUMN_MAPPING = {
-    "Nombre Completo": "nombre_completo",
-    "RFC Colaborador": "rfc_colaborador",
-    "RFC Empresa": "rfc_empresa",
-    "NSS de colaborador": "nss",
-    "Tipo de Servicio": "tipo_servicio",
-    "Proveedor": "proveedor",
-    "Email": "email",
-    "Score": "score",
-    "Estado": "estado"
-}
 
-# Mapeo de preguntas del examen a columnas de Smartsheet
-# Las columnas en Smartsheet se llaman Pregunta_1 a Pregunta_30
-# El question_id del frontend corresponde directamente al número de pregunta
-EXAM_QUESTION_COLUMNS = {
-    i: {"column_name": f"Pregunta_{i}"} for i in range(1, 31)
-}
+def resend_approved_certificate_email(
+    email_to: str,
+    full_name: str,
+    cert_uuid: str,
+    expiration_date_str: str
+) -> bool:
+    """
+    Reenvía el correo de certificado aprobado cuando el colaborador ya tiene certificación vigente.
+
+    Args:
+        email_to: Email del destinatario
+        full_name: Nombre completo del usuario
+        cert_uuid: UUID del certificado existente
+        expiration_date_str: Fecha de vencimiento como string
+
+    Returns:
+        True si el email se envió exitosamente
+    """
+    try:
+        # Generar QR para el certificado existente
+        qr_image = generate_certificate_qr(cert_uuid, API_BASE_URL)
+
+        # Parsear fecha de vencimiento
+        expiration_date = None
+        for date_format in ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y', '%m/%d/%y', '%d/%m/%y']:
+            try:
+                expiration_date = datetime.strptime(str(expiration_date_str), date_format)
+                if expiration_date.year < 100:
+                    expiration_date = expiration_date.replace(year=expiration_date.year + 2000)
+                break
+            except ValueError:
+                continue
+
+        if not expiration_date:
+            expiration_date = datetime.utcnow() + timedelta(days=365)
+
+        # Crear mensaje multipart
+        msg = MIMEMultipart('mixed')
+        msg['Subject'] = f"Recordatorio: Tu Certificación de Seguridad - {full_name}"
+        msg['From'] = "Entersys <no-reply@entersys.mx>"
+        msg['To'] = email_to
+
+        # Contenido HTML del email recordatorio
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    background-color: #f9fafb;
+                }}
+                .container {{
+                    background-color: #ffffff;
+                    border-radius: 8px;
+                    padding: 30px;
+                    margin: 20px 0;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }}
+                .header {{
+                    text-align: center;
+                    margin-bottom: 30px;
+                    padding-bottom: 20px;
+                    border-bottom: 3px solid #FFC600;
+                }}
+                .logo {{
+                    max-height: 80px;
+                    margin-bottom: 15px;
+                }}
+                h1 {{
+                    color: #1f2937;
+                    font-size: 24px;
+                    margin: 0;
+                }}
+                .certificate-info {{
+                    background-color: #f0fdf4;
+                    border-left: 4px solid #16a34a;
+                    padding: 15px;
+                    margin: 20px 0;
+                    border-radius: 4px;
+                }}
+                .reminder-box {{
+                    background-color: #EFF6FF;
+                    border-left: 4px solid #3B82F6;
+                    padding: 15px;
+                    margin: 20px 0;
+                    border-radius: 4px;
+                }}
+                .qr-section {{
+                    text-align: center;
+                    margin: 30px 0;
+                    padding: 20px;
+                    background-color: #f9fafb;
+                    border-radius: 8px;
+                }}
+                .footer {{
+                    text-align: center;
+                    margin-top: 30px;
+                    padding-top: 20px;
+                    border-top: 1px solid #e5e7eb;
+                    font-size: 12px;
+                    color: #6b7280;
+                }}
+                .highlight {{
+                    color: #16a34a;
+                    font-weight: bold;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <img src="https://entersys.mx/images/coca-cola-femsa-logo.png" alt="FEMSA" class="logo">
+                    <h1>Tu Certificación de Seguridad</h1>
+                </div>
+
+                <p>Estimado/a <strong>{full_name}</strong>,</p>
+
+                <div class="reminder-box">
+                    <p><strong>Ya cuentas con una certificación de seguridad vigente.</strong></p>
+                    <p>Este es un recordatorio de tu certificación activa. Te reenviamos tu código QR de acceso.</p>
+                </div>
+
+                <div class="certificate-info">
+                    <p><strong>Detalles de tu Certificación:</strong></p>
+                    <ul>
+                        <li>Estado: <span class="highlight">VIGENTE</span></li>
+                        <li>Válido hasta: <span class="highlight">{expiration_date.strftime('%d/%m/%Y')}</span></li>
+                    </ul>
+                </div>
+
+                <div class="qr-section">
+                    <p><strong>Tu código QR de acceso está adjunto a este correo.</strong></p>
+                    <p>Preséntalo al personal de seguridad en cada ingreso a las instalaciones.</p>
+                </div>
+
+                <p><strong>Importante:</strong></p>
+                <ul>
+                    <li>No es necesario volver a realizar el examen mientras tu certificación esté vigente.</li>
+                    <li>Recibirás un recordatorio antes de que expire tu certificación.</li>
+                    <li>Guarda este correo o el código QR para acceder a las instalaciones.</li>
+                </ul>
+
+                <div class="footer">
+                    <p>Este es un correo automático, por favor no respondas a este mensaje.</p>
+                    <p>&copy; {datetime.utcnow().year} FEMSA - Entersys. Todos los derechos reservados.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Adjuntar contenido HTML
+        html_part = MIMEText(html_content, 'html')
+        msg.attach(html_part)
+
+        # Adjuntar imagen QR
+        qr_attachment = MIMEBase('image', 'png')
+        qr_attachment.set_payload(qr_image)
+        encoders.encode_base64(qr_attachment)
+        qr_attachment.add_header(
+            'Content-Disposition',
+            'attachment',
+            filename=f'certificado_qr_{cert_uuid[:8]}.png'
+        )
+        msg.attach(qr_attachment)
+
+        # Enviar email
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+            server.starttls()
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.send_message(msg)
+
+        logger.info(f"Certificate reminder email sent successfully to {email_to}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Error sending certificate reminder email to {email_to}: {str(e)}")
+        return False
+
+
+@router.get(
+    "/check-exam-status/{rfc}",
+    response_model=ExamStatusResponse,
+    summary="Verificar estatus del examen por RFC",
+    description="""
+    Verifica si un colaborador puede realizar el examen de seguridad.
+
+    **Criterios para poder hacer el examen:**
+    - Estatus Examen = 1 en la hoja de Registros
+    - No estar ya aprobado con certificación vigente
+    - Tener menos de 3 intentos
+
+    **Comportamiento especial:**
+    - Si ya está APROBADO y vigente: NO puede hacer examen, se reenvía su certificado por correo
+    - Si ya está APROBADO pero expiró (pasó 1 año): SI puede hacer examen para renovar
+
+    **Retorna:**
+    - can_take_exam: Si puede hacer el examen
+    - attempts_used: Intentos utilizados
+    - attempts_remaining: Intentos restantes
+    - is_approved: Si ya está aprobado
+    - is_expired: Si el certificado aprobado ya expiró
+    - certificate_resent: Si se reenvió el certificado por correo
+    """
+)
+async def check_exam_status(rfc: str, background_tasks: BackgroundTasks):
+    """
+    Verifica el estatus del examen para un RFC.
+    Si el colaborador ya tiene certificación vigente, reenvía el certificado por correo.
+    """
+    logger.info(f"GET /onboarding/check-exam-status/{rfc}")
+
+    if not rfc or len(rfc) < 10:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="RFC inválido. Debe tener al menos 10 caracteres."
+        )
+
+    try:
+        service = OnboardingSmartsheetService()
+        status_info = await service.check_exam_status(rfc)
+
+        certificate_resent = False
+
+        # Construir mensaje descriptivo
+        if status_info["is_approved"] and not status_info.get("is_expired", False):
+            # Ya está aprobado y vigente - reenviar certificado
+            message = "Ya tienes una certificación de seguridad vigente. Te hemos reenviado tu certificado por correo."
+
+            # Reenviar certificado si tiene los datos necesarios
+            cert_uuid = status_info.get("cert_uuid")
+            email = status_info.get("email")
+            full_name = status_info.get("full_name")
+            expiration_date = status_info.get("expiration_date")
+
+            if cert_uuid and email and full_name:
+                # Reenviar en background para no bloquear la respuesta
+                background_tasks.add_task(
+                    resend_approved_certificate_email,
+                    email,
+                    full_name,
+                    cert_uuid,
+                    expiration_date or ""
+                )
+                certificate_resent = True
+                logger.info(f"Certificate resend scheduled for RFC {rfc} to {email}")
+            else:
+                logger.warning(f"Cannot resend certificate for RFC {rfc}: missing data (uuid={cert_uuid}, email={email})")
+                message = "Ya tienes una certificación de seguridad vigente. No es necesario volver a realizar el examen."
+
+        elif status_info["is_approved"] and status_info.get("is_expired", False):
+            # Aprobado pero expiró - puede renovar
+            message = "Tu certificación anterior expiró. Puedes realizar el examen nuevamente para renovarla."
+
+        elif not status_info["can_take_exam"]:
+            if status_info["attempts_used"] >= MAX_ATTEMPTS:
+                message = f"Has agotado tus {MAX_ATTEMPTS} intentos. Contacta al administrador."
+            else:
+                message = "No tienes autorización para realizar el examen. Verifica tu estatus."
+        else:
+            remaining = status_info["attempts_remaining"]
+            message = f"Puedes realizar el examen. Te quedan {remaining} intento(s)."
+
+        return ExamStatusResponse(
+            can_take_exam=status_info["can_take_exam"],
+            rfc=rfc.upper(),
+            attempts_used=status_info["attempts_used"],
+            attempts_remaining=status_info["attempts_remaining"],
+            is_approved=status_info["is_approved"],
+            is_expired=status_info.get("is_expired", False),
+            last_attempt_date=status_info["last_attempt_date"],
+            expiration_date=status_info.get("expiration_date"),
+            message=message,
+            section_results=status_info["section_results"],
+            certificate_resent=certificate_resent
+        )
+
+    except OnboardingSmartsheetServiceError as e:
+        logger.error(f"Smartsheet error checking exam status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al verificar estatus: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error checking exam status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error interno del servidor"
+        )
+
+
+def calculate_section_results(answers: list) -> tuple:
+    """
+    Calcula los resultados por sección del examen.
+
+    Args:
+        answers: Lista de 30 respuestas con question_id y is_correct
+
+    Returns:
+        Tuple de (section_results: list[SectionResult], section_scores: dict, is_approved: bool)
+    """
+    section_results = []
+    section_scores = {}
+    all_sections_approved = True
+
+    for section_num, section_info in EXAM_SECTIONS.items():
+        section_name = section_info["name"]
+        question_range = section_info["questions"]
+
+        # Contar respuestas correctas en esta sección
+        correct_in_section = 0
+        for answer in answers:
+            if answer.question_id in question_range and answer.is_correct:
+                correct_in_section += 1
+
+        # Calcular score de la sección (10 preguntas cada una)
+        section_score = (correct_in_section / 10) * 100
+        section_approved = section_score >= MINIMUM_SECTION_SCORE
+
+        if not section_approved:
+            all_sections_approved = False
+
+        section_results.append(SectionResult(
+            section_name=section_name,
+            section_number=section_num,
+            correct_count=correct_in_section,
+            total_questions=10,
+            score=section_score,
+            approved=section_approved
+        ))
+
+        # Guardar score para Smartsheet
+        section_scores[f"Seccion{section_num}"] = section_score
+
+    return section_results, section_scores, all_sections_approved
 
 
 @router.post(
     "/submit-exam",
     response_model=ExamSubmitResponse,
-    summary="Enviar examen de seguridad",
+    summary="Enviar examen de seguridad (3 secciones)",
     description="""
-    Endpoint público para enviar el examen de certificación de seguridad.
+    Endpoint para enviar el examen de certificación de seguridad.
+
+    **Estructura del examen (30 preguntas, 3 secciones):**
+    - Sección 1 (Seguridad): Preguntas 1-10
+    - Sección 2 (Inocuidad): Preguntas 11-20
+    - Sección 3 (Ambiental): Preguntas 21-30
+
+    **Criterios de aprobación:**
+    - Cada sección debe tener mínimo 80% (8/10 correctas)
+    - Si falla cualquier sección = Reprobado
+    - Máximo 3 intentos por RFC
 
     **Flujo:**
-    1. Recibe datos personales y respuestas del examen
-    2. Calcula el score basado en respuestas correctas
-    3. Valida intentos previos por RFC del colaborador
-    4. Inserta una nueva fila en Smartsheet con todos los datos
-    5. Si es el tercer intento fallido, envía alerta por correo
-    6. Retorna si aprobó o no (score >= 85)
-
-    **Nota:** Este endpoint NO genera UUID ni QR. Eso lo maneja Smartsheet Bridge.
+    1. Verifica que el RFC puede hacer el examen (Estatus Examen = 1)
+    2. Calcula score por sección
+    3. Guarda resultados en hoja de Registros
+    4. Guarda respuestas (Correcto/Incorrecto) en hoja de Respuestas (Bitácora)
+    5. Si es el 3er intento fallido, envía alerta y bloquea
     """
 )
 async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTasks):
     """
-    Endpoint para enviar el examen de seguridad y registrar en Smartsheet.
+    Endpoint para enviar el examen de seguridad con 3 secciones.
     """
     logger.info(
         f"POST /onboarding/submit-exam - "
@@ -1152,185 +1494,141 @@ async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTa
     )
 
     try:
-        # 1. Calcular score basado en respuestas correctas
-        correct_count = sum(1 for answer in request.answers if answer.is_correct)
-        calculated_score = (correct_count / 10) * 100
+        service = OnboardingSmartsheetService()
 
-        logger.info(f"Score calculado: {calculated_score}% ({correct_count}/10 correctas)")
+        # 1. Verificar estatus del examen antes de procesar
+        status_info = await service.check_exam_status(request.rfc_colaborador)
 
-        # 2. Determinar si aprobó
-        approved = calculated_score >= 85
-        estado = "Aprobado" if approved else "No Aprobado"
+        if not status_info["can_take_exam"]:
+            # Construir mensaje de error apropiado
+            if status_info["is_approved"]:
+                msg = "Ya aprobaste el examen. No necesitas volver a realizarlo."
+            elif status_info["attempts_used"] >= MAX_ATTEMPTS:
+                msg = f"Has agotado tus {MAX_ATTEMPTS} intentos. Contacta al administrador."
+            else:
+                msg = "No tienes autorización para realizar el examen (Estatus Examen != 1)."
 
-        # 3. Preparar datos para Smartsheet
-        sheet_id = getattr(settings, 'SHEET_ID', None)
-
-        if not sheet_id:
-            logger.error("SHEET_ID not configured")
             return ExamSubmitResponse(
                 success=False,
                 approved=False,
-                score=calculated_score,
-                message="Error de configuración del servidor",
-                smartsheet_row_id=None
+                sections=[],
+                overall_score=0,
+                message=msg,
+                attempts_used=status_info["attempts_used"],
+                attempts_remaining=status_info["attempts_remaining"],
+                can_retry=False
             )
 
-        # 4. Construir fila para Smartsheet
-        service = OnboardingSmartsheetService()
+        # 2. Calcular resultados por sección
+        section_results, section_scores, is_approved = calculate_section_results(request.answers)
 
-        # 4.1 Validar intentos previos por RFC antes de insertar
-        attempts_info = None
-        if request.rfc_colaborador:
-            try:
-                attempts_info = await service.get_attempts_by_rfc(
-                    int(sheet_id),
-                    request.rfc_colaborador
-                )
-                logger.info(
-                    f"RFC {request.rfc_colaborador}: {attempts_info['total']} intentos previos, "
-                    f"{attempts_info['fallidos']} fallidos"
-                )
-            except Exception as e:
-                logger.warning(f"Error checking RFC attempts (continuing anyway): {str(e)}")
-                attempts_info = {"total": 0, "aprobados": 0, "fallidos": 0, "registros": []}
+        # Calcular score promedio general
+        overall_score = sum(s.score for s in section_results) / 3
 
-        # Obtener mapeo de columnas (forzar recarga limpiando cache)
-        service._column_map = {}
-        service._reverse_column_map = {}
-        await service._get_column_maps(int(sheet_id))
+        logger.info(
+            f"RFC {request.rfc_colaborador}: "
+            f"Seccion1={section_scores['Seccion1']}%, "
+            f"Seccion2={section_scores['Seccion2']}%, "
+            f"Seccion3={section_scores['Seccion3']}%, "
+            f"Aprobado={is_approved}"
+        )
 
-        # Log de columnas de validación disponibles para debug
-        validation_cols = [k for k in service._reverse_column_map.keys() if 'Validacion' in k or 'validacion' in k.lower()]
-        logger.info(f"Smartsheet validation columns: {validation_cols}")
+        # 3. Preparar datos de respuestas para bitácora
+        answers_results = [
+            {"question_id": a.question_id, "is_correct": a.is_correct}
+            for a in request.answers
+        ]
 
-        # Verificar que Validacion P2 existe
-        if 'Validacion P2' in service._reverse_column_map:
-            logger.info(f"Validacion P2 column ID: {service._reverse_column_map['Validacion P2']}")
+        # 4. Guardar resultados en Smartsheet
+        save_result = await service.save_exam_results(
+            rfc=request.rfc_colaborador,
+            section_scores=section_scores,
+            is_approved=is_approved,
+            answers_results=answers_results,
+            existing_row_id=status_info.get("row_id"),
+            current_attempts=status_info["attempts_used"]
+        )
+
+        new_attempts = save_result["new_attempts"]
+        attempts_remaining = max(0, MAX_ATTEMPTS - new_attempts)
+        can_retry = not is_approved and attempts_remaining > 0
+
+        # 5. Verificar si es el tercer intento fallido
+        if not is_approved and new_attempts >= MAX_ATTEMPTS:
+            logger.warning(
+                f"⚠️ TERCER INTENTO FALLIDO detectado para RFC {request.rfc_colaborador}"
+            )
+
+            # Preparar datos para alerta
+            colaborador_data = {
+                "nombre_completo": request.nombre_completo,
+                "rfc_colaborador": request.rfc_colaborador,
+                "email": request.email,
+                "proveedor": request.proveedor,
+                "tipo_servicio": request.tipo_servicio or "",
+                "rfc_empresa": request.rfc_empresa or "",
+                "nss": request.nss or "",
+                "section_scores": section_scores,
+                "overall_score": overall_score
+            }
+
+            attempts_info = {
+                "total": new_attempts,
+                "fallidos": new_attempts,  # Todos fueron fallidos si llegamos al 3er intento
+                "registros": []
+            }
+
+            # Enviar alerta en background
+            background_tasks.add_task(
+                send_third_attempt_alert_email,
+                colaborador_data,
+                attempts_info
+            )
+            logger.info(f"Alerta de tercer intento programada para RFC {request.rfc_colaborador}")
+
+        # 6. Construir mensaje de respuesta
+        if is_approved:
+            message = "¡Felicidades! Has aprobado el examen. Recibirás tu certificación por correo."
         else:
-            logger.warning("Validacion P2 NOT FOUND in column map!")
-
-        # Construir celdas
-        cells = []
-
-        # Columnas que tienen fórmulas en Smartsheet y NO se pueden escribir
-        FORMULA_COLUMNS = {"Score", "Estado"}
-
-        # Datos personales (excluir columnas con fórmulas)
-        personal_data = {
-            "Nombre Completo": request.nombre_completo,
-            "RFC Colaborador": request.rfc_colaborador,
-            "RFC Empresa": request.rfc_empresa or "",
-            "NSS de colaborador": request.nss or "",
-            "Tipo de Servicio": request.tipo_servicio or "",
-            "Proveedor": request.proveedor,
-            "Email": request.email
-        }
-
-        for column_name, value in personal_data.items():
-            if column_name in service._reverse_column_map and column_name not in FORMULA_COLUMNS:
-                cells.append({
-                    'column_id': service._reverse_column_map[column_name],
-                    'value': value
-                })
-
-        # Respuestas del examen - solo guardar las respuestas textuales
-        # Las columnas de validación tienen formato condicional y se calculan automáticamente
-        # Usamos los IDs de columna directamente para evitar problemas de encoding
-        for answer in request.answers:
-            question_mapping = EXAM_QUESTION_COLUMNS.get(answer.question_id)
-
-            if not question_mapping:
-                logger.warning(f"No mapping found for question {answer.question_id}")
-                continue
-
-            # Guardar la respuesta textual usando el nombre de columna (Pregunta_X)
-            column_name = question_mapping.get("column_name")
-            if column_name and column_name in service._reverse_column_map:
-                column_id = service._reverse_column_map[column_name]
-                cells.append({
-                    'column_id': column_id,
-                    'value': answer.answer
-                })
-                logger.info(f"Q{answer.question_id} ({column_name}): {answer.answer}")
+            # Identificar secciones reprobadas
+            failed_sections = [s.section_name for s in section_results if not s.approved]
+            if can_retry:
+                message = f"No aprobaste. Sección(es) reprobada(s): {', '.join(failed_sections)}. Te quedan {attempts_remaining} intento(s)."
             else:
-                logger.warning(f"Column '{column_name}' not found in Smartsheet for Q{answer.question_id}")
+                message = f"No aprobaste y has agotado tus {MAX_ATTEMPTS} intentos. Contacta al administrador."
 
-        # 5. Insertar fila en Smartsheet con datos personales y respuestas
-        import smartsheet
+        return ExamSubmitResponse(
+            success=True,
+            approved=is_approved,
+            sections=section_results,
+            overall_score=round(overall_score, 2),
+            message=message,
+            attempts_used=new_attempts,
+            attempts_remaining=attempts_remaining,
+            can_retry=can_retry
+        )
 
-        new_row = smartsheet.models.Row()
-        new_row.to_bottom = True
-        new_row.cells = [smartsheet.models.Cell(cell) for cell in cells]
-
-        logger.info(f"Insertando fila con {len(cells)} celdas")
-        response = service.client.Sheets.add_rows(int(sheet_id), [new_row])
-
-        if response.message == 'SUCCESS' and response.result:
-            row_id = response.result[0].id
-            logger.info(f"Fila insertada en Smartsheet: row_id={row_id}")
-
-            # 6. Verificar si es el tercer intento fallido y enviar alerta
-            if not approved and attempts_info:
-                # Contar intentos fallidos previos + este intento actual
-                total_fallidos = attempts_info.get('fallidos', 0) + 1  # +1 por el intento actual
-
-                logger.info(
-                    f"RFC {request.rfc_colaborador}: Total intentos fallidos (incluyendo actual): {total_fallidos}"
-                )
-
-                # Si es exactamente el tercer intento fallido, enviar alerta
-                if total_fallidos == 3:
-                    logger.warning(
-                        f"⚠️ TERCER INTENTO FALLIDO detectado para RFC {request.rfc_colaborador}"
-                    )
-
-                    # Preparar datos del colaborador para el correo
-                    colaborador_data = {
-                        "nombre_completo": request.nombre_completo,
-                        "rfc_colaborador": request.rfc_colaborador,
-                        "email": request.email,
-                        "proveedor": request.proveedor,
-                        "tipo_servicio": request.tipo_servicio or "",
-                        "rfc_empresa": request.rfc_empresa or "",
-                        "nss": request.nss or "",
-                        "score": calculated_score
-                    }
-
-                    # Enviar correo de alerta en background para no bloquear la respuesta
-                    background_tasks.add_task(
-                        send_third_attempt_alert_email,
-                        colaborador_data,
-                        attempts_info
-                    )
-                    logger.info(
-                        f"Correo de alerta de tercer intento programado para RFC {request.rfc_colaborador}"
-                    )
-
-            message = f"Examen enviado exitosamente. {'¡Felicidades! Has aprobado' if approved else 'No aprobaste'} con {calculated_score:.0f}%."
-
-            return ExamSubmitResponse(
-                success=True,
-                approved=approved,
-                score=calculated_score,
-                message=message,
-                smartsheet_row_id=row_id
-            )
-        else:
-            logger.error(f"Error insertando fila en Smartsheet: {response.message}")
-            return ExamSubmitResponse(
-                success=False,
-                approved=approved,
-                score=calculated_score,
-                message="Error al guardar en el sistema. Por favor intenta de nuevo.",
-                smartsheet_row_id=None
-            )
-
-    except Exception as e:
-        logger.error(f"Error en submit-exam: {str(e)}")
+    except OnboardingSmartsheetServiceError as e:
+        logger.error(f"Smartsheet error in submit-exam: {str(e)}")
         return ExamSubmitResponse(
             success=False,
             approved=False,
-            score=0,
+            sections=[],
+            overall_score=0,
+            message=f"Error al guardar en el sistema: {str(e)}",
+            attempts_used=0,
+            attempts_remaining=0,
+            can_retry=False
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error in submit-exam: {str(e)}")
+        return ExamSubmitResponse(
+            success=False,
+            approved=False,
+            sections=[],
+            overall_score=0,
             message=f"Error interno: {str(e)}",
-            smartsheet_row_id=None
+            attempts_used=0,
+            attempts_remaining=0,
+            can_retry=False
         )

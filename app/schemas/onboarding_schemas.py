@@ -126,9 +126,20 @@ class ExamAnswer(BaseModel):
     is_correct: bool = Field(..., description="Si la respuesta es correcta")
 
 
+class SectionResult(BaseModel):
+    """Resultado de una sección del examen."""
+    section_name: str = Field(..., description="Nombre de la sección")
+    section_number: int = Field(..., description="Número de sección (1, 2 o 3)")
+    correct_count: int = Field(..., description="Respuestas correctas")
+    total_questions: int = Field(10, description="Total de preguntas en la sección")
+    score: float = Field(..., description="Porcentaje de la sección")
+    approved: bool = Field(..., description="Si aprobó la sección (>=80%)")
+
+
 class ExamSubmitRequest(BaseModel):
     """
     Schema para la solicitud de envío del examen de seguridad.
+    Ahora con 30 preguntas divididas en 3 secciones.
     """
     # Datos personales
     nombre_completo: str = Field(..., description="Nombre completo", min_length=2, max_length=255)
@@ -139,11 +150,8 @@ class ExamSubmitRequest(BaseModel):
     proveedor: str = Field(..., description="Nombre del proveedor", min_length=2, max_length=255)
     email: EmailStr = Field(..., description="Correo electrónico")
 
-    # Respuestas del examen (10 preguntas)
-    answers: list[ExamAnswer] = Field(..., description="Lista de 10 respuestas", min_length=10, max_length=10)
-
-    # Score calculado en frontend (se recalcula en backend)
-    score_frontend: float = Field(..., description="Score calculado en frontend", ge=0, le=100)
+    # Respuestas del examen (30 preguntas divididas en 3 secciones)
+    answers: list[ExamAnswer] = Field(..., description="Lista de 30 respuestas", min_length=30, max_length=30)
 
     @field_validator('nombre_completo')
     @classmethod
@@ -168,10 +176,9 @@ class ExamSubmitRequest(BaseModel):
                 "proveedor": "Servicios Industriales SA",
                 "email": "juan.perez@empresa.com",
                 "answers": [
-                    {"question_id": 1, "answer": "Prevención, Protección, Preparación", "is_correct": True},
-                    {"question_id": 2, "answer": "Correcta", "is_correct": True}
-                ],
-                "score_frontend": 80.0
+                    {"question_id": 1, "answer": "Respuesta", "is_correct": True}
+                    # ... 30 respuestas
+                ]
             }
         }
 
@@ -179,21 +186,70 @@ class ExamSubmitRequest(BaseModel):
 class ExamSubmitResponse(BaseModel):
     """
     Schema para la respuesta del envío del examen.
+    Incluye resultados por sección.
     """
     success: bool = Field(..., description="Si el envío fue exitoso")
-    approved: bool = Field(..., description="Si el examen fue aprobado (score >= 80)")
-    score: float = Field(..., description="Score final calculado")
+    approved: bool = Field(..., description="Si el examen fue aprobado (todas las secciones >=80%)")
+    sections: list[SectionResult] = Field(..., description="Resultados por sección")
+    overall_score: float = Field(..., description="Promedio general de las 3 secciones")
     message: str = Field(..., description="Mensaje descriptivo")
-    smartsheet_row_id: Optional[int] = Field(None, description="ID de fila en Smartsheet si se insertó")
+    attempts_used: int = Field(..., description="Intentos utilizados")
+    attempts_remaining: int = Field(..., description="Intentos restantes")
+    can_retry: bool = Field(..., description="Si puede volver a intentar")
 
     class Config:
         json_schema_extra = {
             "example": {
                 "success": True,
-                "approved": True,
-                "score": 90.0,
-                "message": "Examen enviado exitosamente. Has aprobado con 90%.",
-                "smartsheet_row_id": 123456789
+                "approved": False,
+                "sections": [
+                    {"section_name": "Seguridad", "section_number": 1, "correct_count": 9, "total_questions": 10, "score": 90.0, "approved": True},
+                    {"section_name": "Inocuidad", "section_number": 2, "correct_count": 8, "total_questions": 10, "score": 80.0, "approved": True},
+                    {"section_name": "Ambiental", "section_number": 3, "correct_count": 6, "total_questions": 10, "score": 60.0, "approved": False}
+                ],
+                "overall_score": 76.67,
+                "message": "No aprobaste. Sección 'Ambiental' requiere mínimo 80%.",
+                "attempts_used": 1,
+                "attempts_remaining": 2,
+                "can_retry": True
+            }
+        }
+
+
+class ExamStatusResponse(BaseModel):
+    """
+    Schema para verificar si un RFC puede realizar el examen.
+    """
+    can_take_exam: bool = Field(..., description="Si puede realizar el examen")
+    rfc: str = Field(..., description="RFC consultado")
+    attempts_used: int = Field(..., description="Intentos utilizados")
+    attempts_remaining: int = Field(..., description="Intentos restantes (máximo 3)")
+    is_approved: bool = Field(..., description="Si ya está aprobado")
+    is_expired: bool = Field(False, description="Si el certificado aprobado ya expiró (pasó 1 año)")
+    last_attempt_date: Optional[str] = Field(None, description="Fecha del último intento")
+    expiration_date: Optional[str] = Field(None, description="Fecha de vencimiento del certificado")
+    message: str = Field(..., description="Mensaje descriptivo")
+    section_results: Optional[dict] = Field(None, description="Resultados por sección si existe registro")
+    certificate_resent: bool = Field(False, description="Si se reenvió el certificado por correo")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "can_take_exam": True,
+                "rfc": "PEGJ850101XXX",
+                "attempts_used": 1,
+                "attempts_remaining": 2,
+                "is_approved": False,
+                "is_expired": False,
+                "last_attempt_date": "2025-12-14",
+                "expiration_date": "2026-12-14",
+                "message": "Puedes realizar el examen. Te quedan 2 intentos.",
+                "section_results": {
+                    "Seccion1": 90,
+                    "Seccion2": 70,
+                    "Seccion3": 80
+                },
+                "certificate_resent": False
             }
         }
 
