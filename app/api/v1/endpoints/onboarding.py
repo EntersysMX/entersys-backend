@@ -188,7 +188,7 @@ def send_qr_email(
                     <div class="certificate-info">
                         <p><strong>Detalles de la Certificación:</strong></p>
                         <ul>
-                            <li>Calificación: <span class="highlight">{score}%</span></li>
+                            <li>Calificación: <span class="highlight">{score:.2f}%</span></li>
                             <li>Estado: <span class="highlight">APROBADO</span></li>
                             <li>Fecha de Emisión: <span class="highlight">{datetime.utcnow().strftime('%d/%m/%Y')}</span></li>
                             <li>Válido hasta: <span class="highlight">{expiration_date.strftime('%d/%m/%Y')}</span></li>
@@ -303,7 +303,7 @@ def send_qr_email(
                     <div class="result-info">
                         <p><strong>Resultado de la Evaluación:</strong></p>
                         <ul>
-                            <li>Calificación Obtenida: <span class="highlight-fail">{score}%</span></li>
+                            <li>Calificación Obtenida: <span class="highlight-fail">{score:.2f}%</span></li>
                             <li>Calificación Mínima Requerida: <span class="highlight-fail">80%</span></li>
                             <li>Estado: <span class="highlight-fail">NO APROBADO</span></li>
                         </ul>
@@ -402,7 +402,7 @@ def send_third_attempt_alert_email(
         msg = MIMEMultipart('mixed')
         msg['Subject'] = f"⚠️ ALERTA: Tercer Intento Fallido - {colaborador_data.get('nombre_completo', 'Colaborador')}"
         msg['From'] = "Entersys <no-reply@entersys.mx>"
-        msg['To'] = "rodrigo.dalay@entersys.mx, mario.dominguez@entersys.mx"
+        msg['To'] = "rodrigo.dalay@entersys.mx, mario.dominguez@entersys.mx, armando.cortes@entersys.mx"
 
         # Generar tabla de historial de intentos
         historial_html = ""
