@@ -26,4 +26,5 @@ echo "✅ Paso 3: La conexión a la base de datos fue exitosa."
 echo "Iniciando la aplicación Gunicorn..."
 
 # Ejecutamos Gunicorn como un módulo (-m) y llamamos a la app como un módulo
-exec gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 app.main:app
+# --timeout 120: Aumentado para operaciones largas como generacion de PDF/certificados
+exec gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 --timeout 120 app.main:app
