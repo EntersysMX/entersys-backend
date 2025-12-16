@@ -588,24 +588,30 @@ def send_third_attempt_alert_email(
                     </div>
                 </div>
 
-                <h3>Historial de Intentos</h3>
+                <h3>Resultado del Tercer Intento</h3>
                 <table>
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Score</th>
+                            <th>Sección</th>
+                            <th>Correctas</th>
+                            <th>Puntaje</th>
                             <th>Estado</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {historial_html}
-                        <tr class="failed">
-                            <td>{attempts_info.get('total', 0) + 1} (Actual)</td>
-                            <td>{colaborador_data.get('score', 'N/A')}%</td>
-                            <td>No Aprobado</td>
-                        </tr>
+                        {''.join([f"""
+                        <tr class="{'approved' if s.get('approved') else 'failed'}">
+                            <td>{s.get('section_name', 'N/A')}</td>
+                            <td>{s.get('correct_count', 0)}/{s.get('total_questions', 10)}</td>
+                            <td>{s.get('score', 0)}%</td>
+                            <td>{'Aprobado' if s.get('approved') else 'No Aprobado'}</td>
+                        </tr>""" for s in colaborador_data.get('section_results', [])])}
                     </tbody>
                 </table>
+                
+                <p style="text-align: center; margin-top: 15px; font-size: 16px;">
+                    <strong>Promedio General: {colaborador_data.get('overall_score', 0):.1f}%</strong>
+                </p>
 
                 <div class="action-needed">
                     <p><strong>Acción Requerida:</strong></p>
@@ -1687,6 +1693,7 @@ async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTa
                 "rfc_empresa": request.rfc_empresa or "",
                 "nss": request.nss or "",
                 "section_scores": section_scores,
+                "section_results": [s.model_dump() for s in section_results],  # Para mostrar en email
                 "overall_score": overall_score
             }
 
