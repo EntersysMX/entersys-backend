@@ -417,6 +417,22 @@ def send_third_attempt_alert_email(
             </tr>
             """
 
+        # Generar tabla de resultados por seccion del intento actual
+        secciones_html = ""
+        for s in colaborador_data.get('section_results', []):
+            sec_class = "approved" if s.get('approved') else "failed"
+            sec_estado = "Aprobado" if s.get('approved') else "No Aprobado"
+            secciones_html += f"""
+                        <tr class="{sec_class}">
+                            <td>{s.get('section_name', 'N/A')}</td>
+                            <td>{s.get('correct_count', 0)}/{s.get('total_questions', 10)}</td>
+                            <td>{s.get('score', 0)}%</td>
+                            <td>{sec_estado}</td>
+                        </tr>"""
+
+        # Score promedio general
+        promedio_general = colaborador_data.get('overall_score', 0)
+
         # Contenido HTML del email
         html_content = f"""
         <!DOCTYPE html>
@@ -599,18 +615,12 @@ def send_third_attempt_alert_email(
                         </tr>
                     </thead>
                     <tbody>
-                        {''.join([f"""
-                        <tr class="{'approved' if s.get('approved') else 'failed'}">
-                            <td>{s.get('section_name', 'N/A')}</td>
-                            <td>{s.get('correct_count', 0)}/{s.get('total_questions', 10)}</td>
-                            <td>{s.get('score', 0)}%</td>
-                            <td>{'Aprobado' if s.get('approved') else 'No Aprobado'}</td>
-                        </tr>""" for s in colaborador_data.get('section_results', [])])}
+                        {secciones_html}
                     </tbody>
                 </table>
                 
                 <p style="text-align: center; margin-top: 15px; font-size: 16px;">
-                    <strong>Promedio General: {colaborador_data.get('overall_score', 0):.1f}%</strong>
+                    <strong>Promedio General: {promedio_general:.1f}%</strong>
                 </p>
 
                 <div class="action-needed">
