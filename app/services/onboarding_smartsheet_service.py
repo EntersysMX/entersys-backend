@@ -741,16 +741,8 @@ class OnboardingSmartsheetService:
                     {"column_id": self._registros_reverse_map[self.COLUMN_SECCION1], "value": section_scores.get("Seccion1", 0)},
                     {"column_id": self._registros_reverse_map[self.COLUMN_SECCION2], "value": section_scores.get("Seccion2", 0)},
                     {"column_id": self._registros_reverse_map[self.COLUMN_SECCION3], "value": section_scores.get("Seccion3", 0)},
-                    {"column_id": self._registros_reverse_map[self.COLUMN_RESULTADO], "value": resultado_str},
                     {"column_id": self._registros_reverse_map[self.COLUMN_INTENTOS], "value": new_attempts},
                 ]
-
-                # Si reprobó y usó todos los intentos, cambiar Estatus Examen a 0
-                if not is_approved and new_attempts >= self.MAX_ATTEMPTS:
-                    cells.append({
-                        "column_id": self._registros_reverse_map[self.COLUMN_ESTATUS_EXAMEN],
-                        "value": "0"
-                    })
 
                 row_to_update = smartsheet.models.Row()
                 row_to_update.id = existing_row_id
@@ -771,9 +763,7 @@ class OnboardingSmartsheetService:
                     {"column_id": self._registros_reverse_map[self.COLUMN_SECCION1], "value": section_scores.get("Seccion1", 0)},
                     {"column_id": self._registros_reverse_map[self.COLUMN_SECCION2], "value": section_scores.get("Seccion2", 0)},
                     {"column_id": self._registros_reverse_map[self.COLUMN_SECCION3], "value": section_scores.get("Seccion3", 0)},
-                    {"column_id": self._registros_reverse_map[self.COLUMN_RESULTADO], "value": resultado_str},
                     {"column_id": self._registros_reverse_map[self.COLUMN_INTENTOS], "value": new_attempts},
-                    {"column_id": self._registros_reverse_map[self.COLUMN_ESTATUS_EXAMEN], "value": "1"},  # Inicialmente puede continuar
                 ]
 
                 # Agregar datos del colaborador si están disponibles
