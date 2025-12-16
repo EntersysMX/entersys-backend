@@ -52,7 +52,7 @@ class OnboardingSmartsheetService:
     COLUMN_NOTA = "Nota"
 
     # Nombres de columnas en hoja de Respuestas (Bitácora)
-    COLUMN_RESP_RFC = "RFC del Colaborador"
+    COLUMN_RESP_RFC = "RFC"  # En esta hoja la columna se llama solo "RFC"
     COLUMN_RESP_FECHA = "FechaExamen"
     COLUMN_RESP_SECCION = "Seccion"
     # R1 a R30 para las respuestas (Correcto/Incorrecto)
@@ -892,6 +892,7 @@ class OnboardingSmartsheetService:
             vencimiento_str = expiration_date.strftime('%Y-%m-%d')
 
             # Construir las celdas a actualizar
+            # NOTA: COLUMN_ENVIO_CERT tiene formula en Smartsheet y se calcula automaticamente
             cells = [
                 {
                     "column_id": self._registros_reverse_map[self.COLUMN_UUID],
@@ -900,10 +901,6 @@ class OnboardingSmartsheetService:
                 {
                     "column_id": self._registros_reverse_map[self.COLUMN_VENCIMIENTO],
                     "value": vencimiento_str
-                },
-                {
-                    "column_id": self._registros_reverse_map[self.COLUMN_ENVIO_CERT],
-                    "value": True
                 }
             ]
 
