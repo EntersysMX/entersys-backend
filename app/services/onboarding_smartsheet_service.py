@@ -45,6 +45,7 @@ class OnboardingSmartsheetService:
     COLUMN_SECCION3 = "Seccion3"  # Score sección Ambiental (21-30)
     COLUMN_RESULTADO = "Resultado Examen"  # Aprobado/Reprobado
     COLUMN_UUID = "UUID"
+    COLUMN_CERT_UUID = "UUID"  # Alias para compatibilidad con validacion
     COLUMN_ENVIO_CERT = "Envio Certificado"
     COLUMN_VENCIMIENTO = "Vencimiento"
     COLUMN_INTENTOS = "Intentos"
