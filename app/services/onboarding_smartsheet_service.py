@@ -816,10 +816,24 @@ class OnboardingSmartsheetService:
 
             # 2. INSERTAR en hoja de Respuestas (Bitácora)
             # Guardar cada respuesta como Correcto/Incorrecto
-            respuestas_cells = [
-                {"column_id": self._respuestas_reverse_map[self.COLUMN_RESP_RFC], "value": rfc.upper()},
-                {"column_id": self._respuestas_reverse_map[self.COLUMN_RESP_FECHA], "value": fecha_hoy},
-            ]
+            respuestas_cells = []
+            
+            # Verificar y agregar columnas si existen
+            if self.COLUMN_RESP_RFC in self._respuestas_reverse_map:
+                respuestas_cells.append({
+                    "column_id": self._respuestas_reverse_map[self.COLUMN_RESP_RFC], 
+                    "value": rfc.upper()
+                })
+            else:
+                self.logger.warning(f"Column '{self.COLUMN_RESP_RFC}' not found in Respuestas sheet. Available: {list(self._respuestas_reverse_map.keys())[:10]}")
+            
+            if self.COLUMN_RESP_FECHA in self._respuestas_reverse_map:
+                respuestas_cells.append({
+                    "column_id": self._respuestas_reverse_map[self.COLUMN_RESP_FECHA], 
+                    "value": fecha_hoy
+                })
+            else:
+                self.logger.warning(f"Column '{self.COLUMN_RESP_FECHA}' not found in Respuestas sheet")
 
             # Agregar resultados de cada respuesta (R1 a R30)
             for answer in answers_results:
