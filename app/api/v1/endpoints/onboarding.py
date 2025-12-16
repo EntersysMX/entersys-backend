@@ -1618,13 +1618,24 @@ async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTa
         ]
 
         # 4. Guardar resultados en Smartsheet
+        # Preparar datos del colaborador para guardar en Smartsheet
+        colaborador_data = {
+            "nombre_completo": request.nombre_completo,
+            "rfc_empresa": request.rfc_empresa,
+            "nss": request.nss,
+            "tipo_servicio": request.tipo_servicio,
+            "proveedor": request.proveedor,
+            "email": request.email
+        }
+
         save_result = await service.save_exam_results(
             rfc=request.rfc_colaborador,
             section_scores=section_scores,
             is_approved=is_approved,
             answers_results=answers_results,
             existing_row_id=status_info.get("row_id"),
-            current_attempts=status_info["attempts_used"]
+            current_attempts=status_info["attempts_used"],
+            colaborador_data=colaborador_data
         )
 
         new_attempts = save_result["new_attempts"]

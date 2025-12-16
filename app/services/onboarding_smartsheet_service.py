@@ -27,13 +27,23 @@ class OnboardingSmartsheetService:
     SHEET_RESPUESTAS_ID = 4715605744635780  # Respuestas_Examen_OnBoarding (bitácora de respuestas)
 
     # Nombres de columnas en hoja de Registros
-    COLUMN_RFC = "RFC"
+    # Datos del Colaborador (primera pantalla del formulario)
+    COLUMN_NOMBRE_COLABORADOR = "Nombre Colaborador"
+    COLUMN_RFC_COLABORADOR = "RFC del Colaborador"
+    COLUMN_RFC_EMPRESA = "RFC de la Empresa"
+    COLUMN_NSS_COLABORADOR = "NSS del Colaborador"
+    COLUMN_TIPO_SERVICIO = "Tipo de Servicio"
+    COLUMN_PROVEEDOR_EMPRESA = "Proveedor / Empresa"
+    COLUMN_CORREO_ELECTRONICO = "Correo Electrónico"
+
+    # Datos del examen
+    COLUMN_RFC = "RFC del Colaborador"  # Alias para compatibilidad
     COLUMN_FECHA_EXAMEN = "FechaExamen"
     COLUMN_TIPO = "Tipo"
     COLUMN_SECCION1 = "Seccion1"  # Score sección Seguridad (1-10)
     COLUMN_SECCION2 = "Seccion2"  # Score sección Inocuidad (11-20)
     COLUMN_SECCION3 = "Seccion3"  # Score sección Ambiental (21-30)
-    COLUMN_RESULTADO = "Resultado"  # Aprobado/Reprobado
+    COLUMN_RESULTADO = "Resultado Examen"  # Aprobado/Reprobado
     COLUMN_UUID = "UUID"
     COLUMN_ENVIO_CERT = "Envio Certificado"
     COLUMN_VENCIMIENTO = "Vencimiento"
@@ -42,7 +52,7 @@ class OnboardingSmartsheetService:
     COLUMN_NOTA = "Nota"
 
     # Nombres de columnas en hoja de Respuestas (Bitácora)
-    COLUMN_RESP_RFC = "RFC"
+    COLUMN_RESP_RFC = "RFC del Colaborador"
     COLUMN_RESP_FECHA = "FechaExamen"
     COLUMN_RESP_SECCION = "Seccion"
     # R1 a R30 para las respuestas (Correcto/Incorrecto)
@@ -670,8 +680,8 @@ class OnboardingSmartsheetService:
                 "estatus_examen": estatus_str,
                 "cert_uuid": cert_uuid_str,
                 "expiration_date": vencimiento_str,
-                "full_name": data.get("Nombre Completo"),
-                "email": data.get("Email")
+                "full_name": data.get(self.COLUMN_NOMBRE_COLABORADOR),
+                "email": data.get(self.COLUMN_CORREO_ELECTRONICO)
             }
 
         except Exception as e:
@@ -685,7 +695,8 @@ class OnboardingSmartsheetService:
         is_approved: bool,
         answers_results: List[Dict[str, Any]],
         existing_row_id: Optional[int] = None,
-        current_attempts: int = 0
+        current_attempts: int = 0,
+        colaborador_data: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Guarda los resultados del examen en ambas hojas de Smartsheet.
@@ -697,6 +708,13 @@ class OnboardingSmartsheetService:
             answers_results: Lista de 30 dicts con {"question_id": 1, "is_correct": True/False}
             existing_row_id: ID de fila existente en Registros (si ya hay registro)
             current_attempts: Intentos actuales antes de este intento
+            colaborador_data: Dict opcional con datos del colaborador:
+                - nombre_completo: Nombre del colaborador
+                - rfc_empresa: RFC de la empresa
+                - nss: NSS del colaborador
+                - tipo_servicio: Tipo de servicio
+                - proveedor: Proveedor / Empresa
+                - email: Correo electrónico
 
         Returns:
             Dict con row_ids de ambas hojas
@@ -708,6 +726,10 @@ class OnboardingSmartsheetService:
             new_attempts = current_attempts + 1
             fecha_hoy = datetime.utcnow().strftime('%Y-%m-%d')
             resultado_str = "Aprobado" if is_approved else "Reprobado"
+
+            # Inicializar colaborador_data si no se proporciona
+            if colaborador_data is None:
+                colaborador_data = {}
 
             # 1. ACTUALIZAR O INSERTAR en hoja de Registros
             registros_row_id = None
@@ -742,7 +764,7 @@ class OnboardingSmartsheetService:
                     self.logger.error(f"Error updating Registros row: {response.message}")
 
             else:
-                # Insertar nueva fila
+                # Insertar nueva fila con datos del colaborador
                 cells = [
                     {"column_id": self._registros_reverse_map[self.COLUMN_RFC], "value": rfc.upper()},
                     {"column_id": self._registros_reverse_map[self.COLUMN_FECHA_EXAMEN], "value": fecha_hoy},
@@ -753,6 +775,43 @@ class OnboardingSmartsheetService:
                     {"column_id": self._registros_reverse_map[self.COLUMN_INTENTOS], "value": new_attempts},
                     {"column_id": self._registros_reverse_map[self.COLUMN_ESTATUS_EXAMEN], "value": "1"},  # Inicialmente puede continuar
                 ]
+
+                # Agregar datos del colaborador si están disponibles
+                if colaborador_data.get("nombre_completo"):
+                    cells.append({
+                        "column_id": self._registros_reverse_map[self.COLUMN_NOMBRE_COLABORADOR],
+                        "value": colaborador_data["nombre_completo"]
+                    })
+
+                if colaborador_data.get("rfc_empresa"):
+                    cells.append({
+                        "column_id": self._registros_reverse_map[self.COLUMN_RFC_EMPRESA],
+                        "value": colaborador_data["rfc_empresa"]
+                    })
+
+                if colaborador_data.get("nss"):
+                    cells.append({
+                        "column_id": self._registros_reverse_map[self.COLUMN_NSS_COLABORADOR],
+                        "value": colaborador_data["nss"]
+                    })
+
+                if colaborador_data.get("tipo_servicio"):
+                    cells.append({
+                        "column_id": self._registros_reverse_map[self.COLUMN_TIPO_SERVICIO],
+                        "value": colaborador_data["tipo_servicio"]
+                    })
+
+                if colaborador_data.get("proveedor"):
+                    cells.append({
+                        "column_id": self._registros_reverse_map[self.COLUMN_PROVEEDOR_EMPRESA],
+                        "value": colaborador_data["proveedor"]
+                    })
+
+                if colaborador_data.get("email"):
+                    cells.append({
+                        "column_id": self._registros_reverse_map[self.COLUMN_CORREO_ELECTRONICO],
+                        "value": colaborador_data["email"]
+                    })
 
                 new_row = smartsheet.models.Row()
                 new_row.to_bottom = True
