@@ -1119,9 +1119,16 @@ async def get_certificate_info(
         # Extraer datos del certificado
         full_name = certificate.get('Nombre Colaborador', 'Usuario')
         expiration_str = certificate.get('Vencimiento', '')
-        score_value = certificate.get('Score', 0)
 
-        # Parsear score
+        # Obtener el campo "Resultado Examen" (Aprobado/Reprobado) - este es el campo que determina si está aprobado
+        resultado_examen = certificate.get('Resultado Examen', '')
+        resultado_str = str(resultado_examen).strip().lower() if resultado_examen else ''
+        is_approved_result = resultado_str == 'aprobado'
+
+        logger.info(f"Certificate {cert_uuid} - Resultado Examen: '{resultado_examen}', is_approved: {is_approved_result}")
+
+        # Score es solo para mostrar, no para validar
+        score_value = certificate.get('Score', 0)
         try:
             score = float(str(score_value).replace('%', '').strip()) if score_value else 0
         except (ValueError, TypeError):
@@ -1157,18 +1164,18 @@ async def get_certificate_info(
             )
             logger.info(f"Scheduled last validation update for row {row_id}")
 
-        # Determinar estado del certificado
+        # Determinar estado del certificado basado en "Resultado Examen" y fecha de vencimiento
         if is_expired:
             status_str = "expired"
             message = "Tu certificación de Seguridad Industrial ha expirado y NO está autorizado para ingresar a las instalaciones. Por favor contacta a tu supervisor para renovar tu certificación."
-        elif score < 80:
+        elif not is_approved_result:
             status_str = "not_approved"
             message = "Tu certificación de Seguridad Industrial no pudo ser validada. La información proporcionada o los requisitos del curso no cumplen con los estándares mínimos de seguridad establecidos."
         else:
             status_str = "approved"
             message = "Tu certificación de Seguridad Industrial ha sido validada correctamente. Has cumplido con todos los requisitos del curso y tu información ha sido aprobada conforme a los estándares de seguridad establecidos."
 
-        logger.info(f"Certificate {cert_uuid} info retrieved: status={status_str}, score={score}, expired={is_expired}")
+        logger.info(f"Certificate {cert_uuid} info retrieved: status={status_str}, resultado_examen={resultado_examen}, expired={is_expired}")
 
         return CertificateInfoResponse(
             success=True,
