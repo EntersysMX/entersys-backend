@@ -315,36 +315,34 @@ class OnboardingSmartsheetService:
 
     def is_certificate_valid(self, certificate_data: Dict[str, Any]) -> bool:
         """
-        Verifica si un certificado es válido (score >= 80 y no expirado).
+        Verifica si un certificado es valido (Resultado Examen = Aprobado y no expirado).
 
         Args:
             certificate_data: Datos del certificado de Smartsheet
 
         Returns:
-            True si el certificado es válido
+            True si el certificado es valido
         """
         try:
-            # Verificar el score directamente
-            score_value = certificate_data.get(self.COLUMN_SCORE)
-            if score_value is not None:
-                try:
-                    score = float(str(score_value).replace('%', '').strip())
-                    if score < 80.0:
-                        self.logger.info(f"Certificate invalid: score {score} < 80")
-                        return False
-                except (ValueError, TypeError):
-                    self.logger.warning(f"Could not parse score value: {score_value}")
+            # 1. Verificar el campo "Resultado Examen" (debe ser "Aprobado")
+            resultado = certificate_data.get(self.COLUMN_RESULTADO)
+            self.logger.info(f"Validating certificate - Resultado Examen: {resultado}")
 
-            # También verificar columna de validez si existe
-            cert_valid = certificate_data.get(self.COLUMN_CERT_VALID)
-            if cert_valid is not None and str(cert_valid).lower() in ['false', '0', 'no']:
-                self.logger.info("Certificate marked as invalid (score < 80)")
+            if resultado is None:
+                self.logger.warning("Certificate has no 'Resultado Examen' field")
                 return False
 
-            expiration_str = certificate_data.get(self.COLUMN_EXPIRATION)
+            resultado_str = str(resultado).strip().lower()
+            if resultado_str != "aprobado":
+                self.logger.info(f"Certificate invalid: Resultado Examen = '{resultado}' (not 'Aprobado')")
+                return False
+
+            # 2. Verificar fecha de vencimiento (campo "Vencimiento")
+            expiration_str = certificate_data.get(self.COLUMN_VENCIMIENTO)
+            self.logger.info(f"Validating certificate - Vencimiento: {expiration_str}")
 
             if not expiration_str:
-                self.logger.warning("Certificate has no expiration date")
+                self.logger.warning("Certificate has no expiration date (Vencimiento)")
                 return False
 
             # Parsear fecha de vencimiento (puede venir en varios formatos)
@@ -360,13 +358,13 @@ class OnboardingSmartsheetService:
                 self.logger.error(f"Could not parse expiration date: {expiration_str}")
                 return False
 
-            # Verificar si está expirado
+            # Verificar si esta expirado
             is_valid = expiration_date.date() >= datetime.utcnow().date()
 
             if not is_valid:
-                self.logger.info(
-                    f"Certificate expired on {expiration_date.date()}"
-                )
+                self.logger.info(f"Certificate expired on {expiration_date.date()}")
+            else:
+                self.logger.info(f"Certificate valid until {expiration_date.date()}")
 
             return is_valid
 
