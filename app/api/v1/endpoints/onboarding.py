@@ -988,7 +988,7 @@ async def validate_qr_certificate(
             )
 
         # Obtener datos del certificado para mostrarlos en la página
-        full_name = certificate.get('Nombre Completo', 'Usuario')
+        full_name = certificate.get('Nombre Colaborador', 'Usuario')
         expiration = certificate.get('Vencimiento', '')
         encoded_name = quote(str(full_name))
         encoded_expiration = quote(str(expiration))
@@ -1117,7 +1117,7 @@ async def get_certificate_info(
             )
 
         # Extraer datos del certificado
-        full_name = certificate.get('Nombre Completo', 'Usuario')
+        full_name = certificate.get('Nombre Colaborador', 'Usuario')
         expiration_str = certificate.get('Vencimiento', '')
         score_value = certificate.get('Score', 0)
 
