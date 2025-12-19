@@ -77,6 +77,7 @@ def seed_data():
         print("Nodos y Opciones creados exitosamente.")
 
         # --- Crear FAQs ---
+        # FAQs Generales (ALL)
         faq1 = SupportFAQ(
             question="¿Cómo restablezco mi contraseña?",
             answer="Para restablecer tu contraseña, ve a la página de inicio de sesión y haz clic en 'Olvidé mi contraseña'.",
@@ -84,6 +85,8 @@ def seed_data():
             target_role="ALL",
             priority=10
         )
+        
+        # FAQs para KOF
         faq2 = SupportFAQ(
             question="¿Cuál es la URL de la VPN?",
             answer="La URL de la VPN para KOF es vpn.kof.com.mx",
@@ -91,6 +94,29 @@ def seed_data():
             target_role="KOF",
             priority=5
         )
+        faq_kof_1 = SupportFAQ(
+            question="¿Cómo solicito permisos de acceso a sistemas?",
+            answer="Los permisos de acceso a sistemas se solicitan a través del portal de TI en la sección 'Solicitudes'. Tu jefe directo debe aprobar la solicitud.",
+            category="ACCESO",
+            target_role="KOF",
+            priority=7
+        )
+        faq_kof_2 = SupportFAQ(
+            question="¿Dónde encuentro los manuales de procedimientos?",
+            answer="Todos los manuales de procedimientos están disponibles en nuestra Wiki: https://wiki.entersys.mx",
+            category="DOCUMENTACIÓN",
+            target_role="KOF",
+            priority=6
+        )
+        faq_kof_3 = SupportFAQ(
+            question="¿A quién contacto para problemas de red?",
+            answer="Para problemas de red o conectividad, contacta a la mesa de ayuda al 55-1234-5678 opción 2 o envía un ticket a soporte@entersys.mx",
+            category="CONECTIVIDAD",
+            target_role="KOF",
+            priority=8
+        )
+        
+        # FAQs para CONTRACTOR
         faq3 = SupportFAQ(
             question="¿Qué documentos necesito para ingresar?",
             answer="Necesitas tu DC3, IMSS vigente y credencial de elector.",
@@ -98,8 +124,43 @@ def seed_data():
             target_role="CONTRACTOR",
             priority=8
         )
+        faq_cont_1 = SupportFAQ(
+            question="¿Cómo solicito acceso a la planta?",
+            answer="El acceso a la planta se solicita a través de tu supervisor. Debes presentar: DC3 vigente, IMSS actualizado, examen médico y constancia de inducción de seguridad.",
+            category="ACCESO",
+            target_role="CONTRACTOR",
+            priority=9
+        )
+        faq_cont_2 = SupportFAQ(
+            question="¿Dónde entrego mi documentación?",
+            answer="La documentación se entrega en el área de Recursos Humanos de planta, en horario de 8:00 a 14:00 hrs de lunes a viernes.",
+            category="ADMINISTRATIVO",
+            target_role="CONTRACTOR",
+            priority=7
+        )
+        faq_cont_3 = SupportFAQ(
+            question="¿Qué equipo de seguridad necesito?",
+            answer="El equipo de protección personal obligatorio incluye: casco, lentes de seguridad, zapatos de seguridad, y chaleco reflejante. Tu empresa debe proporcionártelo.",
+            category="SEGURIDAD",
+            target_role="CONTRACTOR",
+            priority=10
+        )
+        faq_cont_4 = SupportFAQ(
+            question="¿Cómo reporto un incidente de seguridad?",
+            answer="Los incidentes de seguridad deben reportarse inmediatamente a tu supervisor y al coordinador de QHSE. También puedes llamar al 55-1234-5678 opción 3.",
+            category="SEGURIDAD",
+            target_role="CONTRACTOR",
+            priority=10
+        )
+        faq_cont_5 = SupportFAQ(
+            question="¿Cuál es el horario de trabajo?",
+            answer="El horario de trabajo para contratistas varía según el proyecto. Consulta con tu supervisor para conocer tu horario específico.",
+            category="ADMINISTRATIVO",
+            target_role="CONTRACTOR",
+            priority=5
+        )
         
-        db.add_all([faq1, faq2, faq3])
+        db.add_all([faq1, faq2, faq3, faq_kof_1, faq_kof_2, faq_kof_3, faq_cont_1, faq_cont_2, faq_cont_3, faq_cont_4, faq_cont_5])
         db.commit()
         print("FAQs creadas exitosamente.")
 
