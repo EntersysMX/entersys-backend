@@ -35,6 +35,23 @@ class CertificateInfoResponse(BaseModel):
     score: float
     is_expired: bool
     message: str
+
+
+class CredentialResponse(BaseModel):
+    """Response model for virtual credential endpoint"""
+    success: bool
+    status: str  # 'approved', 'not_approved', 'expired', 'not_found'
+    nombre: str
+    rfc: str
+    proveedor: Optional[str] = None
+    tipo_servicio: Optional[str] = None
+    nss: Optional[str] = None
+    email: Optional[str] = None
+    cert_uuid: Optional[str] = None
+    vencimiento: Optional[str] = None
+    fecha_emision: Optional[str] = None
+    is_expired: bool = False
+    message: str
 from app.services.onboarding_smartsheet_service import (
     OnboardingSmartsheetService,
     OnboardingSmartsheetServiceError
@@ -1773,4 +1790,107 @@ async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTa
             attempts_used=0,
             attempts_remaining=0,
             can_retry=False
+        )
+
+
+@router.get(
+    "/credential/{rfc}",
+    response_model=CredentialResponse,
+    summary="Obtener datos de credencial virtual por RFC",
+    description="""
+    Obtiene los datos necesarios para generar una credencial virtual.
+
+    **Usado por la página de credencial virtual**
+
+    Retorna:
+    - Nombre del colaborador
+    - RFC
+    - Proveedor/Empresa
+    - Tipo de servicio
+    - UUID del certificado (para generar QR)
+    - Fecha de vencimiento
+    - Estado de la certificación
+    """
+)
+async def get_credential_by_rfc(rfc: str):
+    """
+    Obtiene los datos de credencial virtual para un RFC.
+    """
+    logger.info(f"GET /onboarding/credential/{rfc}")
+
+    if not rfc or len(rfc) < 10:
+        return CredentialResponse(
+            success=False,
+            status="not_found",
+            nombre="",
+            rfc=rfc,
+            is_expired=False,
+            message="RFC inválido"
+        )
+
+    try:
+        service = OnboardingSmartsheetService()
+
+        # Obtener datos del colaborador por RFC
+        credential_data = await service.get_credential_data_by_rfc(rfc)
+
+        if not credential_data:
+            return CredentialResponse(
+                success=False,
+                status="not_found",
+                nombre="",
+                rfc=rfc.upper(),
+                is_expired=False,
+                message="No se encontró registro para este RFC"
+            )
+
+        # Determinar estado
+        is_approved = credential_data.get("is_approved", False)
+        is_expired = credential_data.get("is_expired", False)
+
+        if is_approved and not is_expired:
+            status = "approved"
+            message = "Certificación vigente"
+        elif is_approved and is_expired:
+            status = "expired"
+            message = "Certificación expirada"
+        else:
+            status = "not_approved"
+            message = "Sin certificación aprobada"
+
+        return CredentialResponse(
+            success=True,
+            status=status,
+            nombre=credential_data.get("full_name", ""),
+            rfc=rfc.upper(),
+            proveedor=credential_data.get("proveedor"),
+            tipo_servicio=credential_data.get("tipo_servicio"),
+            nss=credential_data.get("nss"),
+            email=credential_data.get("email"),
+            cert_uuid=credential_data.get("cert_uuid"),
+            vencimiento=credential_data.get("vencimiento"),
+            fecha_emision=credential_data.get("fecha_emision"),
+            is_expired=is_expired,
+            message=message
+        )
+
+    except OnboardingSmartsheetServiceError as e:
+        logger.error(f"Smartsheet error getting credential: {str(e)}")
+        return CredentialResponse(
+            success=False,
+            status="not_found",
+            nombre="",
+            rfc=rfc.upper(),
+            is_expired=False,
+            message=f"Error al consultar: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error getting credential: {str(e)}")
+        return CredentialResponse(
+            success=False,
+            status="not_found",
+            nombre="",
+            rfc=rfc.upper(),
+            is_expired=False,
+            message="Error interno del servidor"
         )

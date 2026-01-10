@@ -930,3 +930,77 @@ class OnboardingSmartsheetService:
         except Exception as e:
             self.logger.error(f"Error updating certificate data for row {row_id}: {str(e)}")
             raise OnboardingSmartsheetServiceError(f"Error updating certificate data: {str(e)}")
+
+    async def get_credential_data_by_rfc(self, rfc: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtiene los datos necesarios para generar una credencial virtual por RFC.
+
+        Args:
+            rfc: RFC del colaborador
+
+        Returns:
+            Diccionario con datos de credencial o None si no existe:
+            - full_name: Nombre del colaborador
+            - proveedor: Proveedor / Empresa
+            - tipo_servicio: Tipo de servicio
+            - nss: NSS del colaborador
+            - email: Correo electrónico
+            - cert_uuid: UUID del certificado
+            - vencimiento: Fecha de vencimiento
+            - fecha_emision: Fecha del examen
+            - is_approved: Si está aprobado
+            - is_expired: Si el certificado expiró
+        """
+        try:
+            await self._get_registros_column_maps()
+
+            sheet = self.client.Sheets.get_sheet(self.SHEET_REGISTROS_ID)
+            rfc_upper = rfc.strip().upper()
+
+            # Buscar registro existente con este RFC
+            for row in sheet.rows:
+                row_data = {}
+                for cell in row.cells:
+                    col_name = self._registros_column_map.get(cell.column_id, "")
+                    row_data[col_name] = cell.display_value if cell.display_value is not None else cell.value
+
+                row_rfc = str(row_data.get(self.COLUMN_RFC, "")).strip().upper()
+                if row_rfc == rfc_upper:
+                    # Verificar si está aprobado
+                    resultado = str(row_data.get(self.COLUMN_RESULTADO, "")).strip().lower()
+                    is_approved = resultado == "aprobado"
+
+                    # Obtener fecha de vencimiento y verificar expiración
+                    vencimiento = row_data.get(self.COLUMN_VENCIMIENTO)
+                    vencimiento_str = str(vencimiento) if vencimiento else None
+
+                    is_expired = False
+                    if is_approved and vencimiento_str:
+                        for date_format in ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y', '%m/%d/%y', '%d/%m/%y']:
+                            try:
+                                expiration_date = datetime.strptime(str(vencimiento_str), date_format)
+                                if expiration_date.year < 100:
+                                    expiration_date = expiration_date.replace(year=expiration_date.year + 2000)
+                                is_expired = expiration_date.date() < datetime.utcnow().date()
+                                break
+                            except ValueError:
+                                continue
+
+                    return {
+                        "full_name": row_data.get(self.COLUMN_NOMBRE_COLABORADOR),
+                        "proveedor": row_data.get(self.COLUMN_PROVEEDOR_EMPRESA),
+                        "tipo_servicio": row_data.get(self.COLUMN_TIPO_SERVICIO),
+                        "nss": row_data.get(self.COLUMN_NSS_COLABORADOR),
+                        "email": row_data.get(self.COLUMN_CORREO_ELECTRONICO),
+                        "cert_uuid": row_data.get(self.COLUMN_UUID),
+                        "vencimiento": vencimiento_str,
+                        "fecha_emision": row_data.get(self.COLUMN_FECHA_EXAMEN),
+                        "is_approved": is_approved,
+                        "is_expired": is_expired
+                    }
+
+            return None
+
+        except Exception as e:
+            self.logger.error(f"Error getting credential data for RFC {rfc}: {str(e)}")
+            raise OnboardingSmartsheetServiceError(f"Error getting credential data: {str(e)}")
