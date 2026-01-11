@@ -1004,3 +1004,31 @@ class OnboardingSmartsheetService:
         except Exception as e:
             self.logger.error(f"Error getting credential data for RFC {rfc}: {str(e)}")
             raise OnboardingSmartsheetServiceError(f"Error getting credential data: {str(e)}")
+
+    async def get_all_registros(self) -> List[Dict[str, Any]]:
+        """
+        Obtiene todos los registros de la hoja de Registros_OnBoarding.
+
+        Returns:
+            Lista de diccionarios con todos los registros
+        """
+        try:
+            await self._get_registros_column_maps()
+
+            sheet = self.client.Sheets.get_sheet(self.SHEET_REGISTROS_ID)
+            registros = []
+
+            for row in sheet.rows:
+                row_data = {"row_id": row.id}
+                for cell in row.cells:
+                    col_name = self._registros_column_map.get(cell.column_id, f"Col_{cell.column_id}")
+                    row_data[col_name] = cell.display_value if cell.display_value is not None else cell.value
+
+                registros.append(row_data)
+
+            self.logger.info(f"Retrieved {len(registros)} registros from Smartsheet")
+            return registros
+
+        except Exception as e:
+            self.logger.error(f"Error getting all registros: {str(e)}")
+            raise OnboardingSmartsheetServiceError(f"Error getting registros: {str(e)}")

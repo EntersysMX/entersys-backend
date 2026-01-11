@@ -1794,6 +1794,41 @@ async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTa
 
 
 @router.get(
+    "/registros",
+    summary="Listar todos los registros de la hoja de Smartsheet",
+    description="Obtiene todos los registros de la hoja de Registros_OnBoarding"
+)
+async def list_all_registros():
+    """
+    Lista todos los registros de la hoja de Smartsheet.
+    """
+    logger.info("GET /onboarding/registros - Listando todos los registros")
+
+    try:
+        service = OnboardingSmartsheetService()
+        registros = await service.get_all_registros()
+
+        return {
+            "success": True,
+            "total": len(registros),
+            "registros": registros
+        }
+
+    except OnboardingSmartsheetServiceError as e:
+        logger.error(f"Smartsheet error listing registros: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al consultar Smartsheet: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error listing registros: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error interno del servidor"
+        )
+
+
+@router.get(
     "/credential/{rfc}",
     response_model=CredentialResponse,
     summary="Obtener datos de credencial virtual por RFC",
