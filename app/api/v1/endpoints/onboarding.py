@@ -1,5 +1,5 @@
 # app/api/v1/endpoints/onboarding.py
-from fastapi import APIRouter, Query, HTTPException, BackgroundTasks, status
+from fastapi import APIRouter, Query, HTTPException, BackgroundTasks, status, UploadFile, File, Form
 from fastapi.responses import RedirectResponse
 import logging
 import uuid
@@ -12,8 +12,11 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
+import os
 
 from pydantic import BaseModel
+from google.cloud import storage
+from app.core.config import settings
 from app.schemas.onboarding_schemas import (
     OnboardingGenerateRequest,
     OnboardingGenerateResponse,
@@ -50,6 +53,7 @@ class CredentialResponse(BaseModel):
     cert_uuid: Optional[str] = None
     vencimiento: Optional[str] = None
     fecha_emision: Optional[str] = None
+    url_imagen: Optional[str] = None  # URL de la foto de credencial en GCS
     is_expired: bool = False
     message: str
 from app.services.onboarding_smartsheet_service import (
@@ -1665,7 +1669,8 @@ async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTa
             "nss": request.nss,
             "tipo_servicio": request.tipo_servicio,
             "proveedor": request.proveedor,
-            "email": request.email
+            "email": request.email,
+            "url_imagen": request.url_imagen  # URL de la foto de credencial
         }
 
         save_result = await service.save_exam_results(
@@ -1793,6 +1798,80 @@ async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTa
         )
 
 
+@router.post(
+    "/upload-photo",
+    summary="Subir foto de credencial a GCS",
+    description="Sube una foto de credencial a Google Cloud Storage y retorna la URL pública"
+)
+async def upload_photo(
+    file: UploadFile = File(...),
+    rfc: str = Form(...)
+):
+    """
+    Sube una foto de credencial a Google Cloud Storage.
+
+    - **file**: Imagen JPG/PNG (máx 5MB)
+    - **rfc**: RFC del colaborador (usado para nombrar el archivo)
+
+    Retorna la URL pública de la imagen.
+    """
+    logger.info(f"POST /onboarding/upload-photo - Subiendo foto para RFC: {rfc}")
+
+    # Validar tipo de archivo
+    allowed_types = ['image/jpeg', 'image/png', 'image/jpg']
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tipo de archivo no permitido. Solo se aceptan JPG y PNG."
+        )
+
+    # Validar tamaño (5MB máximo)
+    contents = await file.read()
+    if len(contents) > 5 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El archivo excede el tamaño máximo de 5MB."
+        )
+
+    try:
+        # Generar nombre único para el archivo
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+        filename = f"credentials/{rfc.upper()}_{timestamp}.{extension}"
+
+        # Inicializar cliente de GCS
+        storage_client = storage.Client(project=settings.GCS_PROJECT_ID)
+        bucket = storage_client.bucket(settings.GCS_BUCKET_NAME)
+        blob = bucket.blob(filename)
+
+        # Subir archivo
+        blob.upload_from_string(
+            contents,
+            content_type=file.content_type
+        )
+
+        # Hacer el archivo público
+        blob.make_public()
+
+        # Obtener URL pública
+        public_url = blob.public_url
+
+        logger.info(f"Foto subida exitosamente: {public_url}")
+
+        return {
+            "success": True,
+            "url": public_url,
+            "filename": filename
+        }
+
+    except Exception as e:
+        logger.error(f"Error subiendo foto a GCS: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al subir la foto: {str(e)}"
+        )
+
+
 @router.get(
     "/registros",
     summary="Listar todos los registros de la hoja de Smartsheet",
@@ -1905,6 +1984,7 @@ async def get_credential_by_rfc(rfc: str):
             cert_uuid=credential_data.get("cert_uuid"),
             vencimiento=credential_data.get("vencimiento"),
             fecha_emision=credential_data.get("fecha_emision"),
+            url_imagen=credential_data.get("url_imagen"),
             is_expired=is_expired,
             message=message
         )

@@ -35,6 +35,7 @@ class OnboardingSmartsheetService:
     COLUMN_TIPO_SERVICIO = "Tipo de Servicio"
     COLUMN_PROVEEDOR_EMPRESA = "Proveedor / Empresa"
     COLUMN_CORREO_ELECTRONICO = "Correo Electrónico"
+    COLUMN_URL_IMAGEN = "url_imagen"  # URL de la foto de credencial en GCS
 
     # Datos del examen
     COLUMN_RFC = "RFC del Colaborador"  # Alias para compatibilidad
@@ -802,6 +803,13 @@ class OnboardingSmartsheetService:
                         "value": colaborador_data["email"]
                     })
 
+                # URL de imagen de credencial
+                if colaborador_data.get("url_imagen") and self.COLUMN_URL_IMAGEN in self._registros_reverse_map:
+                    cells.append({
+                        "column_id": self._registros_reverse_map[self.COLUMN_URL_IMAGEN],
+                        "value": colaborador_data["url_imagen"]
+                    })
+
                 new_row = smartsheet.models.Row()
                 new_row.to_bottom = True
                 new_row.cells = [smartsheet.models.Cell(cell) for cell in cells]
@@ -995,6 +1003,7 @@ class OnboardingSmartsheetService:
                         "cert_uuid": row_data.get(self.COLUMN_UUID),
                         "vencimiento": vencimiento_str,
                         "fecha_emision": row_data.get(self.COLUMN_FECHA_EXAMEN),
+                        "url_imagen": row_data.get(self.COLUMN_URL_IMAGEN),
                         "is_approved": is_approved,
                         "is_expired": is_expired
                     }

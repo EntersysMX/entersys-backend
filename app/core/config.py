@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     MIDDLEWARE_API_KEY: str
     SHEET_ID: int = 7060277951418244  # ID de la hoja de Smartsheet para onboarding
 
+    # --- Google Cloud Storage Settings ---
+    GCS_BUCKET_NAME: str = "entersys-onboarding-photos"
+    GCS_PROJECT_ID: str = "mi-infraestructura-web"
+
     # --- Email/SMTP Settings ---
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
