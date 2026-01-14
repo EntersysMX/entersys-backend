@@ -744,6 +744,13 @@ class OnboardingSmartsheetService:
                     {"column_id": self._registros_reverse_map[self.COLUMN_INTENTOS], "value": new_attempts},
                 ]
 
+                # Actualizar url_imagen si se proporciona
+                if colaborador_data.get("url_imagen") and self.COLUMN_URL_IMAGEN in self._registros_reverse_map:
+                    cells.append({
+                        "column_id": self._registros_reverse_map[self.COLUMN_URL_IMAGEN],
+                        "value": colaborador_data["url_imagen"]
+                    })
+
                 row_to_update = smartsheet.models.Row()
                 row_to_update.id = existing_row_id
                 row_to_update.cells = [smartsheet.models.Cell(cell) for cell in cells]
