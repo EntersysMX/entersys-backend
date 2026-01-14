@@ -1850,11 +1850,9 @@ async def upload_photo(
             content_type=file.content_type
         )
 
-        # Hacer el archivo público
-        blob.make_public()
-
-        # Obtener URL pública
-        public_url = blob.public_url
+        # El bucket ya tiene acceso público configurado via IAM (uniform bucket-level access)
+        # No necesitamos blob.make_public() - construimos la URL directamente
+        public_url = f"https://storage.googleapis.com/{settings.GCS_BUCKET_NAME}/{filename}"
 
         logger.info(f"Foto subida exitosamente: {public_url}")
 
