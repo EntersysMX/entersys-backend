@@ -38,6 +38,7 @@ class CertificateInfoResponse(BaseModel):
     score: float
     is_expired: bool
     message: str
+    url_imagen: Optional[str] = None  # URL de la foto de credencial
 
 
 class CredentialResponse(BaseModel):
@@ -49,6 +50,7 @@ class CredentialResponse(BaseModel):
     proveedor: Optional[str] = None
     tipo_servicio: Optional[str] = None
     nss: Optional[str] = None
+    rfc_empresa: Optional[str] = None  # RFC de la empresa
     email: Optional[str] = None
     cert_uuid: Optional[str] = None
     vencimiento: Optional[str] = None
@@ -1140,6 +1142,7 @@ async def get_certificate_info(
         # Extraer datos del certificado
         full_name = certificate.get('Nombre Colaborador', 'Usuario')
         expiration_str = certificate.get('Vencimiento', '')
+        url_imagen = certificate.get('url_imagen', None)  # URL de foto de credencial
 
         # Obtener el campo "Resultado Examen" (Aprobado/Reprobado) - este es el campo que determina si está aprobado
         resultado_examen = certificate.get('Resultado Examen', '')
@@ -1205,7 +1208,8 @@ async def get_certificate_info(
             vencimiento=formatted_expiration,
             score=score,
             is_expired=is_expired,
-            message=message
+            message=message,
+            url_imagen=url_imagen
         )
 
     except OnboardingSmartsheetServiceError as e:
@@ -1978,6 +1982,7 @@ async def get_credential_by_rfc(rfc: str):
             proveedor=credential_data.get("proveedor"),
             tipo_servicio=credential_data.get("tipo_servicio"),
             nss=credential_data.get("nss"),
+            rfc_empresa=credential_data.get("rfc_empresa"),
             email=credential_data.get("email"),
             cert_uuid=credential_data.get("cert_uuid"),
             vencimiento=credential_data.get("vencimiento"),

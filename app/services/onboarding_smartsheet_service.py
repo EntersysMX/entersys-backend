@@ -1006,6 +1006,7 @@ class OnboardingSmartsheetService:
                         "proveedor": row_data.get(self.COLUMN_PROVEEDOR_EMPRESA),
                         "tipo_servicio": row_data.get(self.COLUMN_TIPO_SERVICIO),
                         "nss": row_data.get(self.COLUMN_NSS_COLABORADOR),
+                        "rfc_empresa": row_data.get(self.COLUMN_RFC_EMPRESA),
                         "email": row_data.get(self.COLUMN_CORREO_ELECTRONICO),
                         "cert_uuid": row_data.get(self.COLUMN_UUID),
                         "vencimiento": vencimiento_str,
