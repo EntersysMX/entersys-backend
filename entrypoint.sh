@@ -27,4 +27,5 @@ echo "Iniciando la aplicación Gunicorn..."
 
 # Ejecutamos Gunicorn como un módulo (-m) y llamamos a la app como un módulo
 # --timeout 120: Aumentado para operaciones largas como generacion de PDF/certificados
-exec gunicorn -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 --timeout 120 app.main:app
+# -w 4: 4 workers para manejar ~150 usuarios simultáneos
+exec gunicorn -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 --timeout 120 app.main:app
