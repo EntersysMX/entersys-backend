@@ -614,7 +614,7 @@ def send_third_attempt_alert_email(
                 <h3>Resumen de Intentos</h3>
                 <div class="summary">
                     <div class="summary-item total">
-                        <div class="number">{attempts_info.get('total', 0) + 1}</div>
+                        <div class="number">{attempts_info.get('total', 0)}</div>
                         <div class="label">Total Intentos</div>
                     </div>
                     <div class="summary-item approved">
@@ -622,7 +622,7 @@ def send_third_attempt_alert_email(
                         <div class="label">Aprobados</div>
                     </div>
                     <div class="summary-item failed">
-                        <div class="number">{attempts_info.get('fallidos', 0) + 1}</div>
+                        <div class="number">{attempts_info.get('fallidos', 0)}</div>
                         <div class="label">Fallidos</div>
                     </div>
                 </div>
