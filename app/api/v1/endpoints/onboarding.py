@@ -4,15 +4,12 @@ from fastapi.responses import RedirectResponse
 import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import Optional
-import smtplib
+from typing import Optional, List
 import asyncio
 from urllib.parse import quote
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email import encoders
 import os
+import base64
+import resend
 
 from pydantic import BaseModel
 from google.cloud import storage
@@ -90,6 +87,46 @@ def get_onboarding_service() -> OnboardingSmartsheetService:
     return OnboardingSmartsheetService()
 
 
+def send_email_via_resend(
+    to_emails: List[str],
+    subject: str,
+    html_content: str,
+    attachments: List[dict] = None
+) -> bool:
+    """
+    Envía un email usando Resend API.
+
+    Args:
+        to_emails: Lista de emails destinatarios
+        subject: Asunto del email
+        html_content: Contenido HTML del email
+        attachments: Lista de adjuntos [{"filename": "name.png", "content": base64_string}]
+
+    Returns:
+        True si el email se envió exitosamente
+    """
+    try:
+        resend.api_key = settings.RESEND_API_KEY
+
+        email_params = {
+            "from": "Entersys <no-reply@entersys.mx>",
+            "to": to_emails,
+            "subject": subject,
+            "html": html_content
+        }
+
+        if attachments:
+            email_params["attachments"] = attachments
+
+        response = resend.Emails.send(email_params)
+        logger.info(f"Email sent successfully via Resend to {to_emails}, id: {response.get('id', 'N/A')}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Error sending email via Resend to {to_emails}: {str(e)}")
+        return False
+
+
 def send_qr_email(
     email_to: str,
     full_name: str,
@@ -115,16 +152,11 @@ def send_qr_email(
         True si el email se envió exitosamente
     """
     try:
-        # Crear mensaje multipart
-        msg = MIMEMultipart('mixed')
-
+        # Definir asunto según resultado
         if is_valid:
-            msg['Subject'] = f"Onboarding Aprobado - {full_name}"
+            subject = f"Onboarding Aprobado - {full_name}"
         else:
-            msg['Subject'] = f"Onboarding No Aprobado - {full_name}"
-
-        msg['From'] = "Entersys <no-reply@entersys.mx>"
-        msg['To'] = email_to
+            subject = f"Onboarding No Aprobado - {full_name}"
 
         # Contenido HTML del email - diferente según si aprobó o no
         if is_valid:
@@ -358,29 +390,23 @@ def send_qr_email(
             </html>
             """
 
-        # Adjuntar contenido HTML
-        html_part = MIMEText(html_content, 'html')
-        msg.attach(html_part)
+        # Preparar adjunto QR para Resend
+        qr_attachment = {
+            "filename": f"certificado_qr_{cert_uuid[:8]}.png",
+            "content": base64.b64encode(qr_image).decode('utf-8')
+        }
 
-        # Adjuntar imagen QR
-        qr_attachment = MIMEBase('image', 'png')
-        qr_attachment.set_payload(qr_image)
-        encoders.encode_base64(qr_attachment)
-        qr_attachment.add_header(
-            'Content-Disposition',
-            'attachment',
-            filename=f'certificado_qr_{cert_uuid[:8]}.png'
+        # Enviar email via Resend
+        result = send_email_via_resend(
+            to_emails=[email_to],
+            subject=subject,
+            html_content=html_content,
+            attachments=[qr_attachment]
         )
-        msg.attach(qr_attachment)
 
-        # Enviar email
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-            server.starttls()
-            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            server.send_message(msg)
-
-        logger.info(f"QR email sent successfully to {email_to}")
-        return True
+        if result:
+            logger.info(f"QR email sent successfully to {email_to}")
+        return result
 
     except Exception as e:
         logger.error(f"Error sending QR email to {email_to}: {str(e)}")
@@ -421,11 +447,14 @@ def send_third_attempt_alert_email(
         True si el email se envió exitosamente
     """
     try:
-        # Crear mensaje
-        msg = MIMEMultipart('mixed')
-        msg['Subject'] = f"⚠️ ALERTA: Tercer Intento Fallido - {colaborador_data.get('nombre_completo', 'Colaborador')}"
-        msg['From'] = "Entersys <no-reply@entersys.mx>"
-        msg['To'] = "rodrigo.dalay@entersys.mx, mario.dominguez@entersys.mx, armando.cortes@entersys.mx, giovvani.melchor@entersys.mx"
+        # Definir asunto y destinatarios
+        subject = f"⚠️ ALERTA: Tercer Intento Fallido - {colaborador_data.get('nombre_completo', 'Colaborador')}"
+        to_emails = [
+            "rodrigo.dalay@entersys.mx",
+            "mario.dominguez@entersys.mx",
+            "armando.cortes@entersys.mx",
+            "giovvani.melchor@entersys.mx"
+        ]
 
         # Generar tabla de historial de intentos
         historial_html = ""
@@ -660,18 +689,16 @@ def send_third_attempt_alert_email(
         </html>
         """
 
-        # Adjuntar contenido HTML
-        html_part = MIMEText(html_content, 'html')
-        msg.attach(html_part)
+        # Enviar email via Resend
+        result = send_email_via_resend(
+            to_emails=to_emails,
+            subject=subject,
+            html_content=html_content
+        )
 
-        # Enviar email
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-            server.starttls()
-            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            server.send_message(msg)
-
-        logger.info(f"Third attempt alert email sent for RFC {colaborador_data.get('rfc_colaborador')}")
-        return True
+        if result:
+            logger.info(f"Third attempt alert email sent for RFC {colaborador_data.get('rfc_colaborador')}")
+        return result
 
     except Exception as e:
         logger.error(f"Error sending third attempt alert email: {str(e)}")
@@ -1277,11 +1304,8 @@ def resend_approved_certificate_email(
         if not expiration_date:
             expiration_date = datetime.utcnow() + timedelta(days=365)
 
-        # Crear mensaje multipart
-        msg = MIMEMultipart('mixed')
-        msg['Subject'] = f"Recordatorio: Tu Certificación de Seguridad - {full_name}"
-        msg['From'] = "Entersys <no-reply@entersys.mx>"
-        msg['To'] = email_to
+        # Definir asunto
+        subject = f"Recordatorio: Tu Certificación de Seguridad - {full_name}"
 
         # Contenido HTML del email recordatorio
         html_content = f"""
@@ -1399,29 +1423,23 @@ def resend_approved_certificate_email(
         </html>
         """
 
-        # Adjuntar contenido HTML
-        html_part = MIMEText(html_content, 'html')
-        msg.attach(html_part)
+        # Preparar adjunto QR para Resend
+        qr_attachment = {
+            "filename": f"certificado_qr_{cert_uuid[:8]}.png",
+            "content": base64.b64encode(qr_image).decode('utf-8')
+        }
 
-        # Adjuntar imagen QR
-        qr_attachment = MIMEBase('image', 'png')
-        qr_attachment.set_payload(qr_image)
-        encoders.encode_base64(qr_attachment)
-        qr_attachment.add_header(
-            'Content-Disposition',
-            'attachment',
-            filename=f'certificado_qr_{cert_uuid[:8]}.png'
+        # Enviar email via Resend
+        result = send_email_via_resend(
+            to_emails=[email_to],
+            subject=subject,
+            html_content=html_content,
+            attachments=[qr_attachment]
         )
-        msg.attach(qr_attachment)
 
-        # Enviar email
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-            server.starttls()
-            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            server.send_message(msg)
-
-        logger.info(f"Certificate reminder email sent successfully to {email_to}")
-        return True
+        if result:
+            logger.info(f"Certificate reminder email sent successfully to {email_to}")
+        return result
 
     except Exception as e:
         logger.error(f"Error sending certificate reminder email to {email_to}: {str(e)}")

@@ -3,7 +3,11 @@ Script de prueba para enviar email de alerta de tercer intento fallido.
 Ejecutar: python test_email_alert.py
 """
 import sys
+import os
 sys.path.insert(0, '.')
+
+# Configurar API Key de Resend desde variable de entorno
+os.environ['RESEND_API_KEY'] = os.environ.get('RESEND_API_KEY', 're_WWgiBox8_D48pZH258rUi9SBpVJyDez99')
 
 from app.api.v1.endpoints.onboarding import send_third_attempt_alert_email
 

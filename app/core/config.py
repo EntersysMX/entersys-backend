@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     GCS_BUCKET_NAME: str = "entersys-onboarding-photos"
     GCS_PROJECT_ID: str = "mi-infraestructura-web"
 
-    # --- Email/SMTP Settings ---
+    # --- Email/SMTP Settings (Legacy - Gmail) ---
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: str = "armando.cortes@entersys.mx"
@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = "no-reply@entersys.mx"
     SMTP_FROM_NAME: str = "Entersys"
     FRONTEND_URL: str = "https://admin.entersys.mx"
+
+    # --- Resend Email Service ---
+    RESEND_API_KEY: str = ""
 
     @computed_field
     @property
