@@ -1160,3 +1160,42 @@ class OnboardingSmartsheetService:
         Requiere que _get_registros_column_maps() haya sido llamado previamente.
         """
         return self._registros_reverse_map.get(self.COLUMN_REENVIAR_CORREO)
+
+    async def uncheck_reenviar_correo(self, row_id: int) -> bool:
+        """
+        Desmarca la casilla 'Reenviar correo' de una fila (la pone en false).
+
+        Args:
+            row_id: ID de la fila en Smartsheet
+
+        Returns:
+            True si la actualizacion fue exitosa
+        """
+        try:
+            await self._get_registros_column_maps()
+
+            col_id = self._registros_reverse_map.get(self.COLUMN_REENVIAR_CORREO)
+            if not col_id:
+                self.logger.error("Column 'Reenviar correo' not found in sheet")
+                return False
+
+            cell = smartsheet.models.Cell()
+            cell.column_id = col_id
+            cell.value = False
+
+            row_to_update = smartsheet.models.Row()
+            row_to_update.id = row_id
+            row_to_update.cells = [cell]
+
+            response = self.client.Sheets.update_rows(self.SHEET_REGISTROS_ID, [row_to_update])
+
+            if response.message == 'SUCCESS':
+                self.logger.info(f"Unchecked 'Reenviar correo' for row {row_id}")
+                return True
+            else:
+                self.logger.error(f"Error unchecking 'Reenviar correo': {response.message}")
+                return False
+
+        except Exception as e:
+            self.logger.error(f"Error unchecking 'Reenviar correo' for row {row_id}: {str(e)}")
+            return False

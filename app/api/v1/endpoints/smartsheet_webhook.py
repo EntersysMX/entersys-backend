@@ -101,21 +101,26 @@ async def webhook_callback(request: Request):
         return {"status": "error", "reason": "column_ids_not_found"}
 
     # ── Filtrar eventos: cambios en "Correo Electronico" o "Reenviar correo" ──
-    affected_row_ids = set()
+    email_changed_rows = set()
+    reenviar_changed_rows = set()
     for event in events:
-        if (
-            event.get("objectType") == "cell"
-            and event.get("eventType") == "updated"
-            and event.get("columnId") in trigger_column_ids
-        ):
-            affected_row_ids.add(event["rowId"])
+        if event.get("objectType") != "cell" or event.get("eventType") != "updated":
+            continue
+        col_id = event.get("columnId")
+        if col_id == correo_column_id:
+            email_changed_rows.add(event["rowId"])
+        elif col_id == reenviar_column_id:
+            reenviar_changed_rows.add(event["rowId"])
+
+    affected_row_ids = email_changed_rows | reenviar_changed_rows
 
     if not affected_row_ids:
         logger.debug("Smartsheet webhook: no trigger column changes detected")
         return {"status": "ok", "processed": 0}
 
     logger.info(
-        f"Smartsheet webhook: {len(affected_row_ids)} rows with trigger column change detected"
+        f"Smartsheet webhook: {len(affected_row_ids)} rows with trigger column change detected "
+        f"(email={len(email_changed_rows)}, reenviar={len(reenviar_changed_rows)})"
     )
 
     # ── Procesar cada fila afectada ──
@@ -133,12 +138,25 @@ async def webhook_callback(request: Request):
             nuevo_email = row_data.get(service.COLUMN_CORREO_ELECTRONICO)
             full_name = row_data.get(service.COLUMN_NOMBRE_COLABORADOR, "Colaborador")
             vencimiento = row_data.get(service.COLUMN_VENCIMIENTO)
+            reenviar_check = row_data.get(service.COLUMN_REENVIAR_CORREO)
 
             logger.info(
                 f"Smartsheet webhook: row {row_id} data - "
                 f"resultado='{resultado}', cert_uuid='{cert_uuid}', "
-                f"email='{nuevo_email}', name='{full_name}'"
+                f"email='{nuevo_email}', name='{full_name}', "
+                f"reenviar_correo='{reenviar_check}'"
             )
+
+            # Si el trigger fue por "Reenviar correo", solo procesar si está checked
+            # (ignorar cuando se desmarca para evitar loop infinito con uncheck)
+            triggered_by_reenviar = row_id in reenviar_changed_rows
+            if triggered_by_reenviar:
+                reenviar_value = str(reenviar_check).strip().lower() if reenviar_check else ""
+                if reenviar_value not in ("true", "1", "yes", "sí", "si"):
+                    logger.info(
+                        f"Smartsheet webhook: row {row_id} 'Reenviar correo' unchecked, skipping"
+                    )
+                    continue
 
             if resultado != "aprobado":
                 logger.info(
@@ -169,6 +187,8 @@ async def webhook_callback(request: Request):
                     f"Smartsheet webhook: certificado reenviado automaticamente a "
                     f"{nuevo_email} (row {row_id}, UUID {cert_uuid})"
                 )
+                # Desmarcar "Reenviar correo" para que quede listo para el siguiente uso
+                await service.uncheck_reenviar_correo(row_id)
             else:
                 logger.error(
                     f"Smartsheet webhook: fallo al reenviar certificado a "
