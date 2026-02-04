@@ -53,7 +53,9 @@ async def webhook_callback(request: Request):
         NO se valida API key en esta fase porque Smartsheet no envia headers custom.
 
     Fase 2 – Eventos:
-        Se valida X-API-Key y se procesan los eventos de cambio de celda.
+        Smartsheet NO envia headers custom en los eventos, por lo que la
+        autenticacion se hace validando que el scopeObjectId del payload
+        coincida con SHEET_REGISTROS_ID (solo nuestra hoja genera eventos).
     """
 
     # ── Fase de verificacion (challenge) ──
@@ -62,15 +64,6 @@ async def webhook_callback(request: Request):
         logger.info("Smartsheet webhook: challenge received, responding")
         return {"smartsheetHookResponse": challenge}
 
-    # ── Fase de eventos: validar API key ──
-    api_key = request.headers.get("X-API-Key")
-    if not api_key or api_key != settings.MIDDLEWARE_API_KEY:
-        logger.warning("Smartsheet webhook callback: missing or invalid API key")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key",
-        )
-
     # ── Parsear body ──
     try:
         body = await request.json()
@@ -78,9 +71,9 @@ async def webhook_callback(request: Request):
         logger.error("Smartsheet webhook: could not parse request body")
         raise HTTPException(status_code=400, detail="Invalid JSON body")
 
-    # Validar que el evento sea de la hoja correcta
+    # Validar que el evento sea de la hoja correcta (autenticacion por scopeObjectId)
     scope_object_id = body.get("scopeObjectId")
-    if scope_object_id and int(scope_object_id) != SHEET_REGISTROS_ID:
+    if not scope_object_id or int(scope_object_id) != SHEET_REGISTROS_ID:
         logger.warning(
             f"Smartsheet webhook: event for unexpected sheet {scope_object_id}, ignoring"
         )
