@@ -127,18 +127,24 @@ async def webhook_callback(request: Request):
             full_name = row_data.get(service.COLUMN_NOMBRE_COLABORADOR, "Colaborador")
             vencimiento = row_data.get(service.COLUMN_VENCIMIENTO)
 
+            logger.info(
+                f"Smartsheet webhook: row {row_id} data - "
+                f"resultado='{resultado}', cert_uuid='{cert_uuid}', "
+                f"email='{nuevo_email}', name='{full_name}'"
+            )
+
             if resultado != "aprobado":
-                logger.debug(
+                logger.info(
                     f"Smartsheet webhook: row {row_id} resultado='{resultado}', skipping"
                 )
                 continue
 
             if not cert_uuid or not str(cert_uuid).strip():
-                logger.debug(f"Smartsheet webhook: row {row_id} has no cert UUID, skipping")
+                logger.info(f"Smartsheet webhook: row {row_id} has no cert UUID, skipping")
                 continue
 
             if not nuevo_email or not str(nuevo_email).strip():
-                logger.debug(f"Smartsheet webhook: row {row_id} email is empty, skipping")
+                logger.info(f"Smartsheet webhook: row {row_id} email is empty, skipping")
                 continue
 
             # Reenviar certificado al nuevo email
