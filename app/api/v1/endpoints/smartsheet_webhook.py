@@ -84,31 +84,38 @@ async def webhook_callback(request: Request):
         logger.debug("Smartsheet webhook: no events in payload")
         return {"status": "ok", "processed": 0}
 
-    # ── Obtener el column ID de "Correo Electronico" ──
+    # ── Obtener column IDs de las columnas que disparan reenvio ──
     service = get_onboarding_service()
     await service._get_registros_column_maps()
     correo_column_id = service.get_correo_electronico_column_id()
+    reenviar_column_id = service.get_reenviar_correo_column_id()
 
-    if correo_column_id is None:
-        logger.error("Smartsheet webhook: could not resolve 'Correo Electronico' column ID")
-        return {"status": "error", "reason": "column_id_not_found"}
+    trigger_column_ids = set()
+    if correo_column_id:
+        trigger_column_ids.add(correo_column_id)
+    if reenviar_column_id:
+        trigger_column_ids.add(reenviar_column_id)
 
-    # ── Filtrar eventos: solo cambios en la columna "Correo Electronico" ──
+    if not trigger_column_ids:
+        logger.error("Smartsheet webhook: could not resolve trigger column IDs")
+        return {"status": "error", "reason": "column_ids_not_found"}
+
+    # ── Filtrar eventos: cambios en "Correo Electronico" o "Reenviar correo" ──
     affected_row_ids = set()
     for event in events:
         if (
             event.get("objectType") == "cell"
             and event.get("eventType") == "updated"
-            and event.get("columnId") == correo_column_id
+            and event.get("columnId") in trigger_column_ids
         ):
             affected_row_ids.add(event["rowId"])
 
     if not affected_row_ids:
-        logger.debug("Smartsheet webhook: no 'Correo Electronico' changes detected")
+        logger.debug("Smartsheet webhook: no trigger column changes detected")
         return {"status": "ok", "processed": 0}
 
     logger.info(
-        f"Smartsheet webhook: {len(affected_row_ids)} rows with email change detected"
+        f"Smartsheet webhook: {len(affected_row_ids)} rows with trigger column change detected"
     )
 
     # ── Procesar cada fila afectada ──

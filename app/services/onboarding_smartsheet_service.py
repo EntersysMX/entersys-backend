@@ -52,6 +52,7 @@ class OnboardingSmartsheetService:
     COLUMN_INTENTOS = "Intentos"
     COLUMN_ESTATUS_EXAMEN = "Estatus Examen"  # 1 = puede continuar
     COLUMN_NOTA = "Nota"
+    COLUMN_REENVIAR_CORREO = "Reenviar correo"
 
     # Nombres de columnas en hoja de Respuestas (Bitácora)
     COLUMN_RESP_RFC = "RFC"  # En esta hoja la columna se llama solo "RFC"
@@ -1152,3 +1153,10 @@ class OnboardingSmartsheetService:
             ID de la columna o None si no se encuentra
         """
         return self._registros_reverse_map.get(self.COLUMN_CORREO_ELECTRONICO)
+
+    def get_reenviar_correo_column_id(self) -> Optional[int]:
+        """
+        Retorna el column ID de la columna 'Reenviar correo' en la hoja de Registros.
+        Requiere que _get_registros_column_maps() haya sido llamado previamente.
+        """
+        return self._registros_reverse_map.get(self.COLUMN_REENVIAR_CORREO)
