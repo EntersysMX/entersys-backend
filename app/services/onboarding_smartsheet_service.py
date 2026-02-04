@@ -53,7 +53,6 @@ class OnboardingSmartsheetService:
     COLUMN_ESTATUS_EXAMEN = "Estatus Examen"  # 1 = puede continuar
     COLUMN_NOTA = "Nota"
     COLUMN_REENVIAR_CORREO = "Reenviar correo"
-    COLUMN_FECHA_REALIZACION = "Fecha realizacion examen"
 
     # Nombres de columnas en hoja de Respuestas (Bitácora)
     COLUMN_RESP_RFC = "RFC"  # En esta hoja la columna se llama solo "RFC"
@@ -746,13 +745,6 @@ class OnboardingSmartsheetService:
                     {"column_id": self._registros_reverse_map[self.COLUMN_INTENTOS], "value": new_attempts},
                 ]
 
-                # Fecha realizacion examen
-                if self.COLUMN_FECHA_REALIZACION in self._registros_reverse_map:
-                    cells.append({
-                        "column_id": self._registros_reverse_map[self.COLUMN_FECHA_REALIZACION],
-                        "value": fecha_hoy
-                    })
-
                 # Actualizar url_imagen si se proporciona
                 if colaborador_data.get("url_imagen") and self.COLUMN_URL_IMAGEN in self._registros_reverse_map:
                     cells.append({
@@ -781,13 +773,6 @@ class OnboardingSmartsheetService:
                     {"column_id": self._registros_reverse_map[self.COLUMN_SECCION3], "value": section_scores.get("Seccion3", 0)},
                     {"column_id": self._registros_reverse_map[self.COLUMN_INTENTOS], "value": new_attempts},
                 ]
-
-                # Fecha realizacion examen
-                if self.COLUMN_FECHA_REALIZACION in self._registros_reverse_map:
-                    cells.append({
-                        "column_id": self._registros_reverse_map[self.COLUMN_FECHA_REALIZACION],
-                        "value": fecha_hoy
-                    })
 
                 # Agregar datos del colaborador si están disponibles
                 if colaborador_data.get("nombre_completo"):
