@@ -1022,6 +1022,68 @@ class OnboardingSmartsheetService:
             self.logger.error(f"Error getting credential data for RFC {rfc}: {str(e)}")
             raise OnboardingSmartsheetServiceError(f"Error getting credential data: {str(e)}")
 
+    async def get_collaborator_by_rfc_and_nss(self, rfc: str, nss: str) -> Optional[Dict[str, Any]]:
+        """
+        Busca un colaborador por RFC y valida que el NSS coincida (doble verificación de identidad).
+
+        Args:
+            rfc: RFC del colaborador
+            nss: NSS del colaborador para verificación
+
+        Returns:
+            Diccionario con datos del colaborador o None si no existe o NSS no coincide
+        """
+        try:
+            await self._get_registros_column_maps()
+
+            sheet = self.client.Sheets.get_sheet(self.SHEET_REGISTROS_ID)
+            rfc_upper = rfc.strip().upper()
+            nss_clean = nss.strip()
+
+            for row in sheet.rows:
+                row_data = {}
+                for cell in row.cells:
+                    col_name = self._registros_column_map.get(cell.column_id, "")
+                    row_data[col_name] = cell.display_value if cell.display_value is not None else cell.value
+
+                row_rfc = str(row_data.get(self.COLUMN_RFC, "")).strip().upper()
+                if row_rfc == rfc_upper:
+                    # Validar que el NSS coincida
+                    row_nss = str(row_data.get(self.COLUMN_NSS_COLABORADOR, "")).strip()
+                    if row_nss != nss_clean:
+                        self.logger.warning(f"RFC {rfc} encontrado pero NSS no coincide")
+                        return None
+
+                    # NSS coincide, retornar datos completos
+                    resultado = str(row_data.get(self.COLUMN_RESULTADO, "")).strip().lower()
+                    is_approved = resultado == "aprobado"
+
+                    return {
+                        "row_id": row.id,
+                        "full_name": row_data.get(self.COLUMN_NOMBRE_COLABORADOR),
+                        "email": row_data.get(self.COLUMN_CORREO_ELECTRONICO),
+                        "rfc": row_rfc,
+                        "nss": row_nss,
+                        "proveedor": row_data.get(self.COLUMN_PROVEEDOR_EMPRESA),
+                        "tipo_servicio": row_data.get(self.COLUMN_TIPO_SERVICIO),
+                        "rfc_empresa": row_data.get(self.COLUMN_RFC_EMPRESA),
+                        "cert_uuid": row_data.get(self.COLUMN_UUID),
+                        "vencimiento": row_data.get(self.COLUMN_VENCIMIENTO),
+                        "fecha_examen": row_data.get(self.COLUMN_FECHA_EXAMEN),
+                        "resultado": row_data.get(self.COLUMN_RESULTADO),
+                        "is_approved": is_approved,
+                        "seccion1": row_data.get(self.COLUMN_SECCION1),
+                        "seccion2": row_data.get(self.COLUMN_SECCION2),
+                        "seccion3": row_data.get(self.COLUMN_SECCION3),
+                    }
+
+            self.logger.info(f"RFC {rfc} no encontrado en registros")
+            return None
+
+        except Exception as e:
+            self.logger.error(f"Error getting collaborator by RFC and NSS: {str(e)}")
+            raise OnboardingSmartsheetServiceError(f"Error getting collaborator: {str(e)}")
+
     async def get_all_registros(self) -> List[Dict[str, Any]]:
         """
         Obtiene todos los registros de la hoja de Registros_OnBoarding.
@@ -1049,3 +1111,44 @@ class OnboardingSmartsheetService:
         except Exception as e:
             self.logger.error(f"Error getting all registros: {str(e)}")
             raise OnboardingSmartsheetServiceError(f"Error getting registros: {str(e)}")
+
+    async def get_row_data_by_id(self, row_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Obtiene los datos de una fila especifica de la hoja de Registros por su row_id.
+        Mas eficiente que leer toda la hoja cuando solo se necesita una fila.
+
+        Args:
+            row_id: ID de la fila en Smartsheet
+
+        Returns:
+            Diccionario con los datos de la fila o None si ocurre un error
+        """
+        try:
+            await self._get_registros_column_maps()
+
+            row = self.client.Sheets.get_row(self.SHEET_REGISTROS_ID, row_id)
+
+            row_data = {"row_id": row.id}
+            for cell in row.cells:
+                col_name = self._registros_column_map.get(cell.column_id, f"Col_{cell.column_id}")
+                row_data[col_name] = cell.display_value if cell.display_value is not None else cell.value
+
+            self.logger.info(f"Retrieved row {row_id} from Registros sheet")
+            return row_data
+
+        except smartsheet.exceptions.ApiError as e:
+            self.logger.error(f"Smartsheet API error getting row {row_id}: {str(e)}")
+            return None
+        except Exception as e:
+            self.logger.error(f"Error getting row {row_id}: {str(e)}")
+            return None
+
+    def get_correo_electronico_column_id(self) -> Optional[int]:
+        """
+        Retorna el column ID de la columna 'Correo Electronico' en la hoja de Registros.
+        Requiere que _get_registros_column_maps() haya sido llamado previamente.
+
+        Returns:
+            ID de la columna o None si no se encuentra
+        """
+        return self._registros_reverse_map.get(self.COLUMN_CORREO_ELECTRONICO)

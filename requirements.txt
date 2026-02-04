@@ -48,3 +48,6 @@ google-cloud-storage>=2.10.0
 
 # Email Service (Resend)
 resend>=0.5.0
+
+# PDF Generation
+reportlab>=4.0

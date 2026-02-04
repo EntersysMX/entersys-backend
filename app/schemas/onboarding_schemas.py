@@ -257,5 +257,54 @@ class ExamStatusResponse(BaseModel):
         }
 
 
+# ============================================
+# Schemas para reenvío de certificado (soporte)
+# ============================================
+
+class ResendCertificateRequest(BaseModel):
+    """Schema para la solicitud de reenvío de certificado por soporte."""
+    rfc: str = Field(..., description="RFC del colaborador", min_length=10, max_length=13)
+    nss: str = Field(..., description="NSS del colaborador (verificación de identidad)", min_length=11, max_length=11)
+
+    @field_validator('rfc')
+    @classmethod
+    def validate_rfc(cls, v: str) -> str:
+        return v.strip().upper()
+
+    @field_validator('nss')
+    @classmethod
+    def validate_nss(cls, v: str) -> str:
+        v = v.strip()
+        if not v.isdigit():
+            raise ValueError('El NSS debe contener solo dígitos')
+        return v
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "rfc": "PEGJ850101XXX",
+                "nss": "12345678901"
+            }
+        }
+
+
+class ResendCertificateResponse(BaseModel):
+    """Schema para la respuesta de reenvío de certificado."""
+    success: bool = Field(..., description="Si el reenvío fue exitoso")
+    message: str = Field(..., description="Mensaje descriptivo")
+    email_masked: Optional[str] = Field(None, description="Email censurado al que se envió (ej: arm***@entersys.mx)")
+    resultado: Optional[str] = Field(None, description="Resultado del examen (Aprobado/Reprobado)")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": True,
+                "message": "Certificado reenviado exitosamente",
+                "email_masked": "arm***@entersys.mx",
+                "resultado": "Aprobado"
+            }
+        }
+
+
 # Rebuild models to handle forward references
 OnboardingGenerateResponse.model_rebuild()

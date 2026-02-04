@@ -1,6 +1,6 @@
 # app/api/v1/endpoints/onboarding.py
 from fastapi import APIRouter, Query, HTTPException, BackgroundTasks, status, UploadFile, File, Form
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 import logging
 import uuid
 from datetime import datetime, timedelta
@@ -8,6 +8,7 @@ from typing import Optional, List
 import asyncio
 from urllib.parse import quote
 import os
+import io
 import base64
 import resend
 
@@ -22,7 +23,9 @@ from app.schemas.onboarding_schemas import (
     ExamSubmitRequest,
     ExamSubmitResponse,
     ExamStatusResponse,
-    SectionResult
+    SectionResult,
+    ResendCertificateRequest,
+    ResendCertificateResponse
 )
 
 
@@ -1921,6 +1924,247 @@ async def list_all_registros():
         )
     except Exception as e:
         logger.error(f"Unexpected error listing registros: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error interno del servidor"
+        )
+
+
+def mask_email(email: str) -> str:
+    """Censura un email para mostrar solo los primeros 3 caracteres y el dominio."""
+    if not email or '@' not in email:
+        return "***"
+    local, domain = email.split('@', 1)
+    if len(local) <= 3:
+        masked = local[0] + '***'
+    else:
+        masked = local[:3] + '***'
+    return f"{masked}@{domain}"
+
+
+@router.post(
+    "/resend-certificate",
+    response_model=ResendCertificateResponse,
+    summary="Reenviar certificado por RFC y NSS (soporte)",
+    description="""
+    Endpoint para que soporte reenvíe el certificado a un colaborador.
+
+    **Flujo:**
+    1. Recibe RFC + NSS
+    2. Busca al colaborador en Smartsheet por RFC
+    3. Valida que el NSS coincida (doble verificación de identidad)
+    4. Lee el email actual de Smartsheet (el corregido por soporte)
+    5. Si resultado = Aprobado → reenvía email con QR
+    6. Si resultado = Reprobado → reenvía email de reprobado
+    7. Retorna confirmación con email censurado
+    """
+)
+async def resend_certificate(request: ResendCertificateRequest):
+    """
+    Reenvía el certificado de un colaborador buscando por RFC y validando NSS.
+    """
+    logger.info(f"POST /onboarding/resend-certificate - RFC={request.rfc}")
+
+    try:
+        service = OnboardingSmartsheetService()
+
+        # Buscar colaborador por RFC y validar NSS
+        collaborator = await service.get_collaborator_by_rfc_and_nss(request.rfc, request.nss)
+
+        if not collaborator:
+            return ResendCertificateResponse(
+                success=False,
+                message="No se encontró un colaborador con ese RFC y NSS. Verifica los datos."
+            )
+
+        email = collaborator.get("email")
+        full_name = collaborator.get("full_name", "Colaborador")
+        cert_uuid = collaborator.get("cert_uuid")
+        vencimiento = collaborator.get("vencimiento", "")
+        resultado = str(collaborator.get("resultado", "")).strip()
+        is_approved = collaborator.get("is_approved", False)
+
+        if not email:
+            return ResendCertificateResponse(
+                success=False,
+                message="El colaborador no tiene un correo electrónico registrado."
+            )
+
+        email_masked = mask_email(email)
+
+        if is_approved and cert_uuid:
+            # Reenviar certificado aprobado con QR
+            sent = resend_approved_certificate_email(
+                email_to=email,
+                full_name=full_name,
+                cert_uuid=cert_uuid,
+                expiration_date_str=str(vencimiento) if vencimiento else ""
+            )
+
+            if sent:
+                return ResendCertificateResponse(
+                    success=True,
+                    message=f"Certificado aprobado reenviado exitosamente a {email_masked}",
+                    email_masked=email_masked,
+                    resultado="Aprobado"
+                )
+            else:
+                return ResendCertificateResponse(
+                    success=False,
+                    message="Error al enviar el correo. Intenta de nuevo."
+                )
+
+        else:
+            # Reenviar email de reprobado
+            # Generar QR de referencia
+            qr_image = generate_certificate_qr(cert_uuid or str(uuid.uuid4()), API_BASE_URL)
+
+            # Calcular score promedio de secciones
+            s1 = float(str(collaborator.get("seccion1", 0) or 0).replace('%', '').strip() or 0)
+            s2 = float(str(collaborator.get("seccion2", 0) or 0).replace('%', '').strip() or 0)
+            s3 = float(str(collaborator.get("seccion3", 0) or 0).replace('%', '').strip() or 0)
+            overall_score = (s1 + s2 + s3) / 3 if (s1 or s2 or s3) else 0
+
+            # Parsear fecha de vencimiento
+            exp_date = datetime.utcnow() + timedelta(days=365)
+            if vencimiento:
+                for fmt in ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y']:
+                    try:
+                        exp_date = datetime.strptime(str(vencimiento), fmt)
+                        break
+                    except ValueError:
+                        continue
+
+            sent = send_qr_email(
+                email_to=email,
+                full_name=full_name,
+                qr_image=qr_image,
+                expiration_date=exp_date,
+                cert_uuid=cert_uuid or "N/A",
+                is_valid=False,
+                score=overall_score
+            )
+
+            if sent:
+                return ResendCertificateResponse(
+                    success=True,
+                    message=f"Resultado de examen reenviado exitosamente a {email_masked}",
+                    email_masked=email_masked,
+                    resultado="Reprobado"
+                )
+            else:
+                return ResendCertificateResponse(
+                    success=False,
+                    message="Error al enviar el correo. Intenta de nuevo."
+                )
+
+    except OnboardingSmartsheetServiceError as e:
+        logger.error(f"Smartsheet error in resend-certificate: {str(e)}")
+        return ResendCertificateResponse(
+            success=False,
+            message=f"Error al consultar el sistema: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error in resend-certificate: {str(e)}")
+        return ResendCertificateResponse(
+            success=False,
+            message="Error interno del servidor"
+        )
+
+
+@router.get(
+    "/download-certificate/{rfc}",
+    summary="Descargar certificado PDF por RFC",
+    description="""
+    Genera y descarga un certificado PDF para un colaborador aprobado.
+
+    **Flujo:**
+    1. Obtiene datos del colaborador por RFC
+    2. Obtiene scores por sección
+    3. Genera QR del certificado
+    4. Genera PDF con datos, resultados y QR
+    5. Retorna como descarga directa
+    """
+)
+async def download_certificate_pdf(rfc: str):
+    """
+    Genera y descarga un certificado PDF para un RFC.
+    """
+    logger.info(f"GET /onboarding/download-certificate/{rfc}")
+
+    if not rfc or len(rfc) < 10:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="RFC inválido"
+        )
+
+    try:
+        from app.utils.pdf_utils import generate_certificate_pdf
+
+        service = OnboardingSmartsheetService()
+
+        # Obtener datos del colaborador
+        credential_data = await service.get_credential_data_by_rfc(rfc)
+        if not credential_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontró registro para este RFC"
+            )
+
+        # Obtener scores por sección
+        status_info = await service.check_exam_status(rfc)
+        section_results = status_info.get("section_results") if status_info else None
+
+        # Generar QR si tiene cert_uuid
+        qr_bytes = None
+        cert_uuid = credential_data.get("cert_uuid")
+        if cert_uuid:
+            try:
+                qr_bytes = generate_certificate_qr(cert_uuid, API_BASE_URL)
+            except Exception as e:
+                logger.warning(f"Could not generate QR for PDF: {e}")
+
+        # Preparar datos del colaborador para el PDF
+        pdf_data = {
+            "full_name": credential_data.get("full_name", ""),
+            "rfc": rfc.upper(),
+            "proveedor": credential_data.get("proveedor"),
+            "tipo_servicio": credential_data.get("tipo_servicio"),
+            "nss": credential_data.get("nss"),
+            "rfc_empresa": credential_data.get("rfc_empresa"),
+            "email": credential_data.get("email"),
+            "cert_uuid": cert_uuid,
+            "vencimiento": credential_data.get("vencimiento"),
+            "fecha_emision": credential_data.get("fecha_emision"),
+            "is_approved": credential_data.get("is_approved", False),
+        }
+
+        # Generar PDF
+        pdf_bytes = generate_certificate_pdf(
+            collaborator_data=pdf_data,
+            section_results=section_results,
+            qr_image_bytes=qr_bytes
+        )
+
+        # Retornar como descarga directa
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="certificado_{rfc.upper()}.pdf"'
+            }
+        )
+
+    except HTTPException:
+        raise
+    except OnboardingSmartsheetServiceError as e:
+        logger.error(f"Smartsheet error downloading certificate: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al consultar Smartsheet: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error downloading certificate: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error interno del servidor"

@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     # --- Resend Email Service ---
     RESEND_API_KEY: str = ""
 
+    # --- Smartsheet Webhook ---
+    SMARTSHEET_WEBHOOK_CALLBACK_URL: str = ""  # URL publica del callback, ej: https://api.entersys.mx/api/v1/smartsheet-webhook/callback
+
     @computed_field
     @property
     def DATABASE_URI(self) -> str:
