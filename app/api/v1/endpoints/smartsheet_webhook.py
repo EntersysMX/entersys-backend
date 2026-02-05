@@ -3,6 +3,7 @@ from fastapi import APIRouter, Header, Depends, HTTPException, Request, status
 from typing import Optional, List
 import logging
 import httpx
+import asyncio
 
 from app.core.config import settings
 from app.services.onboarding_smartsheet_service import (
@@ -214,6 +215,9 @@ async def webhook_callback(request: Request):
                     f"Smartsheet webhook: fallo al reenviar certificado a "
                     f"{nuevo_email} (row {row_id})"
                 )
+
+            # Delay entre envíos para evitar rate limiting de Gmail
+            await asyncio.sleep(2)
 
         except Exception as e:
             logger.error(f"Smartsheet webhook: error processing row {row_id}: {str(e)}")
