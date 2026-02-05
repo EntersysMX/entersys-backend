@@ -124,9 +124,21 @@ async def webhook_callback(request: Request):
         f"(email={len(email_changed_rows)}, reenviar={len(reenviar_changed_rows)})"
     )
 
+    # Limitar procesamiento para evitar sobrecarga
+    # Priorizar filas con "Reenviar correo" marcado, luego las de cambio de email
+    MAX_ROWS_PER_WEBHOOK = 10
+    prioritized_rows = list(reenviar_changed_rows) + [r for r in email_changed_rows if r not in reenviar_changed_rows]
+    rows_to_process = prioritized_rows[:MAX_ROWS_PER_WEBHOOK]
+
+    if len(affected_row_ids) > MAX_ROWS_PER_WEBHOOK:
+        logger.warning(
+            f"Smartsheet webhook: limiting processing to {MAX_ROWS_PER_WEBHOOK} rows "
+            f"(total detected: {len(affected_row_ids)})"
+        )
+
     # ── Procesar cada fila afectada ──
     processed = 0
-    for row_id in affected_row_ids:
+    for row_id in rows_to_process:
         try:
             row_data = await service.get_row_data_by_id(row_id)
             if row_data is None:
