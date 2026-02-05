@@ -172,6 +172,24 @@ async def webhook_callback(request: Request):
                 logger.info(f"Smartsheet webhook: row {row_id} email is empty, skipping")
                 continue
 
+            # Extraer datos adicionales del colaborador para el PDF
+            collaborator_data = {
+                "nombre_completo": str(full_name).strip(),
+                "rfc_colaborador": row_data.get(service.COLUMN_RFC_COLABORADOR, ""),
+                "rfc_empresa": row_data.get(service.COLUMN_RFC_EMPRESA, ""),
+                "nss": row_data.get(service.COLUMN_NSS_COLABORADOR, ""),
+                "tipo_servicio": row_data.get(service.COLUMN_TIPO_SERVICIO, ""),
+                "proveedor": row_data.get(service.COLUMN_PROVEEDOR_EMPRESA, ""),
+                "foto_url": row_data.get(service.COLUMN_URL_IMAGEN, ""),
+            }
+
+            # Extraer resultados por sección
+            section_results = {
+                "Seguridad": row_data.get(service.COLUMN_SECCION1, 0),
+                "Inocuidad": row_data.get(service.COLUMN_SECCION2, 0),
+                "Ambiental": row_data.get(service.COLUMN_SECCION3, 0),
+            }
+
             # Reenviar certificado al nuevo email
             vencimiento_str = str(vencimiento) if vencimiento else ""
             sent = resend_approved_certificate_email(
@@ -179,6 +197,8 @@ async def webhook_callback(request: Request):
                 full_name=str(full_name).strip(),
                 cert_uuid=str(cert_uuid).strip(),
                 expiration_date_str=vencimiento_str,
+                collaborator_data=collaborator_data,
+                section_results=section_results,
             )
 
             if sent:

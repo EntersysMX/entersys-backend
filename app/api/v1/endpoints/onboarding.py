@@ -180,10 +180,12 @@ def send_qr_email(
     expiration_date: datetime,
     cert_uuid: str,
     is_valid: bool = True,
-    score: float = 0.0
+    score: float = 0.0,
+    collaborator_data: dict = None,
+    section_results: dict = None
 ) -> bool:
     """
-    Envía el email con el código QR adjunto.
+    Envía el email con el código QR y PDF del certificado adjuntos.
 
     Args:
         email_to: Email del destinatario
@@ -193,6 +195,8 @@ def send_qr_email(
         cert_uuid: UUID del certificado
         is_valid: Si el certificado es válido (score >= 80)
         score: Puntuación obtenida
+        collaborator_data: Datos adicionales del colaborador para el PDF (opcional)
+        section_results: Resultados por sección para el PDF (opcional)
 
     Returns:
         True si el email se envió exitosamente
@@ -436,18 +440,54 @@ def send_qr_email(
             </html>
             """
 
-        # Preparar adjunto QR para Resend
+        # Preparar adjuntos
+        attachments = []
+
+        # Adjunto QR
         qr_attachment = {
             "filename": f"certificado_qr_{cert_uuid[:8]}.png",
             "content": base64.b64encode(qr_image).decode('utf-8')
         }
+        attachments.append(qr_attachment)
 
-        # Enviar email via Resend
+        # Generar y adjuntar PDF si está aprobado
+        if is_valid:
+            try:
+                from app.utils.pdf_utils import generate_certificate_pdf
+
+                # Preparar datos para el PDF
+                pdf_data = collaborator_data.copy() if collaborator_data else {}
+                pdf_data.update({
+                    "full_name": full_name,
+                    "email": email_to,
+                    "cert_uuid": cert_uuid,
+                    "vencimiento": expiration_date.strftime('%d/%m/%Y'),
+                    "fecha_emision": datetime.utcnow().strftime('%d/%m/%Y'),
+                    "is_approved": True,
+                })
+
+                # Generar PDF
+                pdf_bytes = generate_certificate_pdf(
+                    collaborator_data=pdf_data,
+                    section_results=section_results,
+                    qr_image_bytes=qr_image
+                )
+
+                pdf_attachment = {
+                    "filename": f"certificado_{cert_uuid[:8]}.pdf",
+                    "content": base64.b64encode(pdf_bytes).decode('utf-8')
+                }
+                attachments.append(pdf_attachment)
+                logger.info(f"PDF attachment generated for {email_to}")
+            except Exception as e:
+                logger.warning(f"Could not generate PDF attachment: {e}")
+
+        # Enviar email via SMTP
         result = send_email_via_resend(
             to_emails=[email_to],
             subject=subject,
             html_content=html_content,
-            attachments=[qr_attachment]
+            attachments=attachments
         )
 
         if result:
@@ -1318,7 +1358,9 @@ def resend_approved_certificate_email(
     email_to: str,
     full_name: str,
     cert_uuid: str,
-    expiration_date_str: str
+    expiration_date_str: str,
+    collaborator_data: dict = None,
+    section_results: dict = None
 ) -> bool:
     """
     Reenvía el correo de certificado aprobado cuando el colaborador ya tiene certificación vigente.
@@ -1328,6 +1370,8 @@ def resend_approved_certificate_email(
         full_name: Nombre completo del usuario
         cert_uuid: UUID del certificado existente
         expiration_date_str: Fecha de vencimiento como string
+        collaborator_data: Datos adicionales del colaborador para el PDF (opcional)
+        section_results: Resultados por sección para el PDF (opcional)
 
     Returns:
         True si el email se envió exitosamente
@@ -1469,18 +1513,54 @@ def resend_approved_certificate_email(
         </html>
         """
 
-        # Preparar adjunto QR para Resend
+        # Preparar adjuntos
+        attachments = []
+
+        # Adjunto QR
         qr_attachment = {
             "filename": f"certificado_qr_{cert_uuid[:8]}.png",
             "content": base64.b64encode(qr_image).decode('utf-8')
         }
+        attachments.append(qr_attachment)
 
-        # Enviar email via Resend
+        # Generar y adjuntar PDF si se tienen los datos
+        if collaborator_data or section_results:
+            try:
+                from app.utils.pdf_utils import generate_certificate_pdf
+
+                # Preparar datos para el PDF
+                pdf_data = collaborator_data.copy() if collaborator_data else {}
+                pdf_data.update({
+                    "full_name": full_name,
+                    "email": email_to,
+                    "cert_uuid": cert_uuid,
+                    "vencimiento": expiration_date.strftime('%d/%m/%Y'),
+                    "fecha_emision": datetime.utcnow().strftime('%d/%m/%Y'),
+                    "is_approved": True,
+                })
+
+                # Generar PDF
+                pdf_bytes = generate_certificate_pdf(
+                    collaborator_data=pdf_data,
+                    section_results=section_results,
+                    qr_image_bytes=qr_image
+                )
+
+                pdf_attachment = {
+                    "filename": f"certificado_{cert_uuid[:8]}.pdf",
+                    "content": base64.b64encode(pdf_bytes).decode('utf-8')
+                }
+                attachments.append(pdf_attachment)
+                logger.info(f"PDF attachment generated for resend to {email_to}")
+            except Exception as e:
+                logger.warning(f"Could not generate PDF attachment for resend: {e}")
+
+        # Enviar email via SMTP
         result = send_email_via_resend(
             to_emails=[email_to],
             subject=subject,
             html_content=html_content,
-            attachments=[qr_attachment]
+            attachments=attachments
         )
 
         if result:
