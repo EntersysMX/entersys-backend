@@ -11,6 +11,11 @@ import os
 import io
 import base64
 import resend
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
 
 from pydantic import BaseModel
 from google.cloud import storage
@@ -90,14 +95,14 @@ def get_onboarding_service() -> OnboardingSmartsheetService:
     return OnboardingSmartsheetService()
 
 
-def send_email_via_resend(
+def send_email_via_smtp(
     to_emails: List[str],
     subject: str,
     html_content: str,
     attachments: List[dict] = None
 ) -> bool:
     """
-    Envía un email usando Resend API.
+    Envía un email usando SMTP de Gmail/Google Workspace.
 
     Args:
         to_emails: Lista de emails destinatarios
@@ -108,6 +113,70 @@ def send_email_via_resend(
     Returns:
         True si el email se envió exitosamente
     """
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+        msg['To'] = ', '.join(to_emails)
+
+        # Agregar contenido HTML
+        html_part = MIMEText(html_content, 'html', 'utf-8')
+        msg.attach(html_part)
+
+        # Agregar adjuntos si hay
+        if attachments:
+            for attachment in attachments:
+                filename = attachment.get("filename", "attachment")
+                content_b64 = attachment.get("content", "")
+                try:
+                    content_bytes = base64.b64decode(content_b64)
+                    part = MIMEBase('application', 'octet-stream')
+                    part.set_payload(content_bytes)
+                    encoders.encode_base64(part)
+                    part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
+                    msg.attach(part)
+                except Exception as e:
+                    logger.warning(f"Could not attach file {filename}: {e}")
+
+        # Conectar y enviar via SMTP
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+            server.starttls()
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.sendmail(settings.SMTP_FROM_EMAIL, to_emails, msg.as_string())
+
+        logger.info(f"Email sent successfully via SMTP to {to_emails}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Error sending email via SMTP to {to_emails}: {str(e)}")
+        return False
+
+
+def send_email_via_resend(
+    to_emails: List[str],
+    subject: str,
+    html_content: str,
+    attachments: List[dict] = None
+) -> bool:
+    """
+    Envía un email. Usa SMTP como método principal, Resend como fallback.
+
+    Args:
+        to_emails: Lista de emails destinatarios
+        subject: Asunto del email
+        html_content: Contenido HTML del email
+        attachments: Lista de adjuntos [{"filename": "name.png", "content": base64_string}]
+
+    Returns:
+        True si el email se envió exitosamente
+    """
+    # Intentar primero con SMTP (Gmail/Google Workspace)
+    if settings.SMTP_PASSWORD:
+        if send_email_via_smtp(to_emails, subject, html_content, attachments):
+            return True
+        logger.warning("SMTP failed, trying Resend as fallback...")
+
+    # Fallback a Resend si SMTP falla o no está configurado
     try:
         resend.api_key = settings.RESEND_API_KEY
 
