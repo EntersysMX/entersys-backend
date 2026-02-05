@@ -41,9 +41,9 @@ class OnboardingSmartsheetService:
     COLUMN_RFC = "RFC del Colaborador"  # Alias para compatibilidad
     COLUMN_FECHA_EXAMEN = "FechaExamen"
     COLUMN_TIPO = "Tipo"
-    COLUMN_SECCION1 = "Seccion1"  # Score sección Seguridad (1-10)
-    COLUMN_SECCION2 = "Seccion2"  # Score sección Inocuidad (11-20)
-    COLUMN_SECCION3 = "Seccion3"  # Score sección Ambiental (21-30)
+    COLUMN_SECCION1 = "Seguridad"  # Score sección Seguridad (1-10)
+    COLUMN_SECCION2 = "Inocuidad"  # Score sección Inocuidad (11-20)
+    COLUMN_SECCION3 = "Ambiental"  # Score sección Ambiental (21-30)
     COLUMN_RESULTADO = "Resultado Examen"  # Aprobado/Reprobado
     COLUMN_UUID = "UUID"
     COLUMN_CERT_UUID = "UUID"  # Alias para compatibilidad con validacion
