@@ -123,10 +123,10 @@ def generate_certificate_pdf(
     status_color = COLOR_GREEN if is_approved else COLOR_RED
 
     # === HEADER: Logo + Titulo ===
-    # Logo si existe (Coca-Cola FEMSA - logo horizontal)
+    # Logo si existe (Coca-Cola FEMSA - logo horizontal 600x343, proporcion 1.75:1)
     if os.path.exists(LOGO_PATH):
         try:
-            logo = RLImage(LOGO_PATH, width=180, height=60)
+            logo = RLImage(LOGO_PATH, width=150, height=86)
             logo.hAlign = 'CENTER'
             elements.append(logo)
             elements.append(Spacer(1, 8))
