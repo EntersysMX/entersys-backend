@@ -10,7 +10,6 @@ from urllib.parse import quote
 import os
 import io
 import base64
-import resend
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -159,7 +158,8 @@ def send_email_via_resend(
     attachments: List[dict] = None
 ) -> bool:
     """
-    Envía un email. Usa SMTP como método principal, Resend como fallback.
+    Envía un email usando SMTP de Gmail/Google Workspace.
+    Mantiene el nombre de la función por compatibilidad con el resto del código.
 
     Args:
         to_emails: Lista de emails destinatarios
@@ -170,33 +170,7 @@ def send_email_via_resend(
     Returns:
         True si el email se envió exitosamente
     """
-    # Intentar primero con SMTP (Gmail/Google Workspace)
-    if settings.SMTP_PASSWORD:
-        if send_email_via_smtp(to_emails, subject, html_content, attachments):
-            return True
-        logger.warning("SMTP failed, trying Resend as fallback...")
-
-    # Fallback a Resend si SMTP falla o no está configurado
-    try:
-        resend.api_key = settings.RESEND_API_KEY
-
-        email_params = {
-            "from": "Entersys <no-reply@entersys.mx>",
-            "to": to_emails,
-            "subject": subject,
-            "html": html_content
-        }
-
-        if attachments:
-            email_params["attachments"] = attachments
-
-        response = resend.Emails.send(email_params)
-        logger.info(f"Email sent successfully via Resend to {to_emails}, id: {response.get('id', 'N/A')}")
-        return True
-
-    except Exception as e:
-        logger.error(f"Error sending email via Resend to {to_emails}: {str(e)}")
-        return False
+    return send_email_via_smtp(to_emails, subject, html_content, attachments)
 
 
 def send_qr_email(
