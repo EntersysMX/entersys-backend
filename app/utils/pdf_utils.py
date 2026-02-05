@@ -33,8 +33,8 @@ COLOR_GRAY = HexColor("#6b7280")
 COLOR_GRAY_LIGHT = HexColor("#f3f4f6")
 COLOR_ENTERSYS_BLUE = HexColor("#093D53")
 
-# Path al logo
-LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "entersys_symbol_black.png")
+# Path al logo (Coca-Cola FEMSA)
+LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "coca-cola-femsa-logo.png")
 
 
 def generate_certificate_pdf(
@@ -123,10 +123,10 @@ def generate_certificate_pdf(
     status_color = COLOR_GREEN if is_approved else COLOR_RED
 
     # === HEADER: Logo + Titulo ===
-    # Logo si existe
+    # Logo si existe (Coca-Cola FEMSA - logo horizontal)
     if os.path.exists(LOGO_PATH):
         try:
-            logo = RLImage(LOGO_PATH, width=50, height=50)
+            logo = RLImage(LOGO_PATH, width=180, height=60)
             logo.hAlign = 'CENTER'
             elements.append(logo)
             elements.append(Spacer(1, 8))
