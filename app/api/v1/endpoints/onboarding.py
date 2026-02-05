@@ -838,7 +838,9 @@ async def generate_certificate_internal(
     full_name: str,
     email: str,
     score: float,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    collaborator_data: dict = None,
+    section_results: dict = None
 ) -> dict:
     """
     Función interna para generar certificado QR.
@@ -850,6 +852,8 @@ async def generate_certificate_internal(
         email: Email del usuario
         score: Puntuación obtenida
         background_tasks: BackgroundTasks para envío de email
+        collaborator_data: Datos adicionales del colaborador para el PDF (opcional)
+        section_results: Resultados por sección para el PDF (opcional)
 
     Returns:
         Dict con success, cert_uuid, error
@@ -883,7 +887,7 @@ async def generate_certificate_internal(
             logger.error(f"Error actualizando Smartsheet con certificado: {str(e)}")
             # Continuar de todas formas para enviar el email
 
-        # 5. Enviar email con QR en background
+        # 5. Enviar email con QR y PDF en background
         background_tasks.add_task(
             send_qr_email,
             email,
@@ -892,9 +896,11 @@ async def generate_certificate_internal(
             expiration_date,
             cert_uuid,
             True,  # is_valid (siempre True porque solo se llama cuando aprueba)
-            score
+            score,
+            collaborator_data,
+            section_results
         )
-        logger.info(f"Email de certificado programado para {email}")
+        logger.info(f"Email de certificado con PDF programado para {email}")
 
         return {
             "success": True,
@@ -1844,13 +1850,21 @@ async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTa
                 logger.info(f"Examen APROBADO para RFC {request.rfc_colaborador} - Generando certificado...")
 
                 # Llamar a la lógica de generación de certificado
+                # Preparar section_results como dict para el PDF
+                section_results_for_pdf = {
+                    "Seguridad": section_scores.get("Seccion1", 0),
+                    "Inocuidad": section_scores.get("Seccion2", 0),
+                    "Ambiental": section_scores.get("Seccion3", 0),
+                }
                 try:
                     generate_result = await generate_certificate_internal(
                         row_id=row_id,
                         full_name=request.nombre_completo,
                         email=request.email,
                         score=overall_score,
-                        background_tasks=background_tasks
+                        background_tasks=background_tasks,
+                        collaborator_data=colaborador_data,
+                        section_results=section_results_for_pdf
                     )
 
                     if generate_result.get("success"):
