@@ -102,6 +102,7 @@ def send_email_via_smtp(
 ) -> bool:
     """
     Envía un email usando SMTP de Gmail/Google Workspace.
+    Incluye reintentos automáticos para manejar rate limiting.
 
     Args:
         to_emails: Lista de emails destinatarios
@@ -112,43 +113,57 @@ def send_email_via_smtp(
     Returns:
         True si el email se envió exitosamente
     """
-    try:
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
-        msg['From'] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-        msg['To'] = ', '.join(to_emails)
+    import time
 
-        # Agregar contenido HTML
-        html_part = MIMEText(html_content, 'html', 'utf-8')
-        msg.attach(html_part)
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+    msg['To'] = ', '.join(to_emails)
 
-        # Agregar adjuntos si hay
-        if attachments:
-            for attachment in attachments:
-                filename = attachment.get("filename", "attachment")
-                content_b64 = attachment.get("content", "")
-                try:
-                    content_bytes = base64.b64decode(content_b64)
-                    part = MIMEBase('application', 'octet-stream')
-                    part.set_payload(content_bytes)
-                    encoders.encode_base64(part)
-                    part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
-                    msg.attach(part)
-                except Exception as e:
-                    logger.warning(f"Could not attach file {filename}: {e}")
+    # Agregar contenido HTML
+    html_part = MIMEText(html_content, 'html', 'utf-8')
+    msg.attach(html_part)
 
-        # Conectar y enviar via SMTP
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-            server.starttls()
-            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            server.sendmail(settings.SMTP_FROM_EMAIL, to_emails, msg.as_string())
+    # Agregar adjuntos si hay
+    if attachments:
+        for attachment in attachments:
+            filename = attachment.get("filename", "attachment")
+            content_b64 = attachment.get("content", "")
+            try:
+                content_bytes = base64.b64decode(content_b64)
+                part = MIMEBase('application', 'octet-stream')
+                part.set_payload(content_bytes)
+                encoders.encode_base64(part)
+                part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
+                msg.attach(part)
+            except Exception as e:
+                logger.warning(f"Could not attach file {filename}: {e}")
 
-        logger.info(f"Email sent successfully via SMTP to {to_emails}")
-        return True
+    # Reintentos con backoff para manejar rate limiting de Gmail
+    max_retries = 3
+    retry_delay = 5  # segundos
 
-    except Exception as e:
-        logger.error(f"Error sending email via SMTP to {to_emails}: {str(e)}")
-        return False
+    for attempt in range(max_retries):
+        try:
+            # Conectar y enviar via SMTP con timeout
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=30) as server:
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.sendmail(settings.SMTP_FROM_EMAIL, to_emails, msg.as_string())
+
+            logger.info(f"Email sent successfully via SMTP to {to_emails}")
+            return True
+
+        except Exception as e:
+            logger.warning(f"SMTP attempt {attempt + 1}/{max_retries} failed for {to_emails}: {str(e)}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+                retry_delay *= 2  # Backoff exponencial
+            else:
+                logger.error(f"Error sending email via SMTP to {to_emails} after {max_retries} attempts: {str(e)}")
+                return False
+
+    return False
 
 
 def send_email_via_resend(
