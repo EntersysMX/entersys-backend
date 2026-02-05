@@ -145,13 +145,12 @@ def send_email_via_smtp(
 
     for attempt in range(max_retries):
         try:
-            # Conectar y enviar via SMTP con timeout
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=30) as server:
-                server.starttls()
+            # Usar SMTP_SSL (puerto 465) que es más estable que STARTTLS
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as server:
                 server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
                 server.sendmail(settings.SMTP_FROM_EMAIL, to_emails, msg.as_string())
 
-            logger.info(f"Email sent successfully via SMTP to {to_emails}")
+            logger.info(f"Email sent successfully via SMTP_SSL to {to_emails}")
             return True
 
         except Exception as e:
