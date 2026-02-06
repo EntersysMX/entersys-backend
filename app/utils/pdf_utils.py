@@ -1,7 +1,7 @@
 # app/utils/pdf_utils.py
 """
-Generación de PDF de constancia de capacitación estilo tarjeta corporativa.
-Diseño tipo ID card profesional.
+Generación de PDF de constancia de capacitación.
+Diseño a página completa, profesional y limpio.
 """
 import io
 import logging
@@ -26,7 +26,7 @@ COLOR_GREEN = HexColor("#16a34a")
 COLOR_RED_STATUS = HexColor("#dc2626")
 COLOR_GRAY = HexColor("#6b7280")
 COLOR_GRAY_LIGHT = HexColor("#f5f5f5")
-COLOR_GRAY_BORDER = HexColor("#e0e0e0")
+COLOR_GRAY_BORDER = HexColor("#d1d5db")
 
 # Path al logo
 LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "coca-cola-femsa-logo.png")
@@ -45,41 +45,13 @@ def fetch_photo_from_url(url: str) -> Optional[bytes]:
     return None
 
 
-def draw_rounded_rect(c, x, y, width, height, radius, fill_color=None, stroke_color=None, stroke_width=1):
-    """Dibuja un rectángulo con esquinas redondeadas."""
-    c.saveState()
-
-    path = c.beginPath()
-    path.moveTo(x + radius, y)
-    path.lineTo(x + width - radius, y)
-    path.arcTo(x + width - radius, y, x + width, y + radius, 90)
-    path.lineTo(x + width, y + height - radius)
-    path.arcTo(x + width - radius, y + height - radius, x + width, y + height, 0)
-    path.lineTo(x + radius, y + height)
-    path.arcTo(x, y + height - radius, x + radius, y + height, -90)
-    path.lineTo(x, y + radius)
-    path.arcTo(x, y, x + radius, y + radius, 180)
-    path.close()
-
-    if fill_color:
-        c.setFillColor(fill_color)
-        c.drawPath(path, fill=1, stroke=0)
-
-    if stroke_color:
-        c.setStrokeColor(stroke_color)
-        c.setLineWidth(stroke_width)
-        c.drawPath(path, fill=0, stroke=1)
-
-    c.restoreState()
-
-
 def generate_certificate_pdf(
     collaborator_data: Dict[str, Any],
     section_results: Optional[Dict[str, Any]] = None,
     qr_image_bytes: Optional[bytes] = None
 ) -> bytes:
     """
-    Genera un PDF de constancia estilo tarjeta ID profesional.
+    Genera un PDF de constancia a página completa.
     """
     buffer = io.BytesIO()
 
@@ -87,11 +59,10 @@ def generate_certificate_pdf(
     c = canvas.Canvas(buffer, pagesize=letter)
     page_width, page_height = letter
 
-    # Dimensiones de la tarjeta (tamaño credencial grande)
-    card_width = 400
-    card_height = 550
-    card_x = (page_width - card_width) / 2
-    card_y = (page_height - card_height) / 2
+    # Márgenes
+    margin_x = 50
+    margin_y = 40
+    content_width = page_width - (margin_x * 2)
 
     is_approved = collaborator_data.get("is_approved", False)
     status_color = COLOR_GREEN if is_approved else COLOR_RED_STATUS
@@ -110,76 +81,65 @@ def generate_certificate_pdf(
     foto_url = collaborator_data.get("foto_url", "")
 
     # ══════════════════════════════════════════════════════════════════
-    # FONDO DE LA TARJETA
+    # HEADER - Barra roja superior con logo
     # ══════════════════════════════════════════════════════════════════
+    header_height = 80
+    header_y = page_height - header_height
 
-    # Sombra
-    c.setFillColor(HexColor("#00000015"))
-    draw_rounded_rect(c, card_x + 4, card_y - 4, card_width, card_height, 15, fill_color=HexColor("#cccccc"))
-
-    # Tarjeta principal blanca
-    draw_rounded_rect(c, card_x, card_y, card_width, card_height, 15, fill_color=white, stroke_color=COLOR_GRAY_BORDER, stroke_width=2)
-
-    # ══════════════════════════════════════════════════════════════════
-    # HEADER ROJO
-    # ══════════════════════════════════════════════════════════════════
-    header_height = 85
-    header_y = card_y + card_height - header_height
-
-    # Fondo rojo del header (con esquinas superiores redondeadas)
-    c.saveState()
-    path = c.beginPath()
-    path.moveTo(card_x, header_y)
-    path.lineTo(card_x + card_width, header_y)
-    path.lineTo(card_x + card_width, card_y + card_height - 15)
-    path.arcTo(card_x + card_width - 15, card_y + card_height - 15, card_x + card_width, card_y + card_height, 0)
-    path.lineTo(card_x + 15, card_y + card_height)
-    path.arcTo(card_x, card_y + card_height - 15, card_x + 15, card_y + card_height, -90)
-    path.lineTo(card_x, header_y)
-    path.close()
+    # Barra roja
     c.setFillColor(COLOR_RED)
-    c.drawPath(path, fill=1, stroke=0)
-    c.restoreState()
+    c.rect(0, header_y, page_width, header_height, fill=1, stroke=0)
 
-    # Logo en el header
+    # Logo centrado en el header
     if os.path.exists(LOGO_PATH):
         try:
             logo = ImageReader(LOGO_PATH)
-            logo_w, logo_h = 120, 50
-            logo_x = card_x + (card_width - logo_w) / 2
-            logo_y = header_y + (header_height - logo_h) / 2 + 5
+            logo_w, logo_h = 140, 55
+            logo_x = (page_width - logo_w) / 2
+            logo_y = header_y + (header_height - logo_h) / 2
             c.drawImage(logo, logo_x, logo_y, width=logo_w, height=logo_h, preserveAspectRatio=True, mask='auto')
         except Exception as e:
             logger.warning(f"Could not load logo: {e}")
-            # Texto alternativo
             c.setFillColor(white)
-            c.setFont("Helvetica-Bold", 18)
-            c.drawCentredString(card_x + card_width/2, header_y + 40, "COCA-COLA FEMSA")
+            c.setFont("Helvetica-Bold", 20)
+            c.drawCentredString(page_width/2, header_y + 35, "COCA-COLA FEMSA")
+
+    # Línea amarilla debajo del header
+    c.setFillColor(COLOR_YELLOW)
+    c.rect(0, header_y - 4, page_width, 4, fill=1, stroke=0)
 
     # ══════════════════════════════════════════════════════════════════
-    # TÍTULO
+    # TÍTULO PRINCIPAL
     # ══════════════════════════════════════════════════════════════════
-    title_y = header_y - 35
+    title_y = header_y - 60
     c.setFillColor(COLOR_DARK)
-    c.setFont("Helvetica-Bold", 16)
-    c.drawCentredString(card_x + card_width/2, title_y, "CONSTANCIA DE CAPACITACIÓN")
+    c.setFont("Helvetica-Bold", 28)
+    c.drawCentredString(page_width/2, title_y, "CONSTANCIA DE CAPACITACIÓN")
 
     c.setFillColor(COLOR_GRAY)
-    c.setFont("Helvetica", 10)
-    c.drawCentredString(card_x + card_width/2, title_y - 15, "Onboarding Seguridad KOF")
+    c.setFont("Helvetica", 14)
+    c.drawCentredString(page_width/2, title_y - 25, "Onboarding Seguridad KOF")
 
     # ══════════════════════════════════════════════════════════════════
-    # FOTO DEL COLABORADOR
+    # SECCIÓN PRINCIPAL: FOTO + DATOS DEL COLABORADOR
     # ══════════════════════════════════════════════════════════════════
-    photo_size = 110
-    photo_x = card_x + (card_width - photo_size) / 2
-    photo_y = title_y - photo_size - 30
+    section_y = title_y - 80
 
-    # Marco de la foto
-    draw_rounded_rect(c, photo_x - 3, photo_y - 3, photo_size + 6, photo_size + 6, 8,
-                     fill_color=COLOR_GRAY_LIGHT, stroke_color=COLOR_GRAY_BORDER, stroke_width=2)
+    # Foto a la izquierda
+    photo_size = 140
+    photo_x = margin_x + 30
+    photo_y = section_y - photo_size
 
-    # Foto o placeholder
+    # Marco de foto (rectángulo simple)
+    c.setStrokeColor(COLOR_GRAY_BORDER)
+    c.setLineWidth(2)
+    c.rect(photo_x - 3, photo_y - 3, photo_size + 6, photo_size + 6, fill=0, stroke=1)
+
+    # Fondo gris claro para la foto
+    c.setFillColor(COLOR_GRAY_LIGHT)
+    c.rect(photo_x, photo_y, photo_size, photo_size, fill=1, stroke=0)
+
+    # Dibujar foto o placeholder
     photo_drawn = False
     if foto_url:
         photo_bytes = fetch_photo_from_url(foto_url)
@@ -194,121 +154,136 @@ def generate_certificate_pdf(
                 logger.warning(f"Could not draw photo: {e}")
 
     if not photo_drawn:
-        # Placeholder
         c.setFillColor(COLOR_GRAY)
-        c.setFont("Helvetica", 12)
+        c.setFont("Helvetica", 14)
         c.drawCentredString(photo_x + photo_size/2, photo_y + photo_size/2, "SIN FOTO")
 
-    # ══════════════════════════════════════════════════════════════════
-    # NOMBRE Y DATOS PRINCIPALES
-    # ══════════════════════════════════════════════════════════════════
-    info_y = photo_y - 30
+    # Datos a la derecha de la foto
+    info_x = photo_x + photo_size + 40
+    info_y = section_y - 10
 
-    # Nombre
+    # Nombre grande
     c.setFillColor(COLOR_DARK)
-    c.setFont("Helvetica-Bold", 14)
+    c.setFont("Helvetica-Bold", 20)
     name_display = str(full_name).upper()
-    if len(name_display) > 35:
-        name_display = name_display[:35] + "..."
-    c.drawCentredString(card_x + card_width/2, info_y, name_display)
+    if len(name_display) > 30:
+        name_display = name_display[:30] + "..."
+    c.drawString(info_x, info_y, name_display)
 
     # RFC
     c.setFillColor(COLOR_GRAY)
-    c.setFont("Helvetica", 10)
-    c.drawCentredString(card_x + card_width/2, info_y - 18, f"RFC: {rfc}")
+    c.setFont("Helvetica", 12)
+    c.drawString(info_x, info_y - 25, f"RFC: {rfc}")
 
-    # ══════════════════════════════════════════════════════════════════
-    # BADGE DE ESTADO
-    # ══════════════════════════════════════════════════════════════════
-    badge_y = info_y - 50
-    badge_width = 140
-    badge_height = 28
-    badge_x = card_x + (card_width - badge_width) / 2
-
-    draw_rounded_rect(c, badge_x, badge_y, badge_width, badge_height, 14, fill_color=status_color)
-
+    # Badge de estado (rectángulo simple)
+    badge_y = info_y - 60
+    badge_width = 150
+    badge_height = 32
+    c.setFillColor(status_color)
+    c.rect(info_x, badge_y, badge_width, badge_height, fill=1, stroke=0)
     c.setFillColor(white)
-    c.setFont("Helvetica-Bold", 12)
-    c.drawCentredString(card_x + card_width/2, badge_y + 8, resultado_text)
+    c.setFont("Helvetica-Bold", 14)
+    c.drawCentredString(info_x + badge_width/2, badge_y + 10, resultado_text)
+
+    # Empresa y tipo de servicio
+    c.setFillColor(COLOR_GRAY)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(info_x, badge_y - 25, "EMPRESA")
+    c.setFillColor(COLOR_DARK)
+    c.setFont("Helvetica", 11)
+    c.drawString(info_x, badge_y - 38, str(proveedor)[:35])
+
+    c.setFillColor(COLOR_GRAY)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(info_x, badge_y - 60, "TIPO DE SERVICIO")
+    c.setFillColor(COLOR_DARK)
+    c.setFont("Helvetica", 11)
+    c.drawString(info_x, badge_y - 73, str(tipo_servicio)[:35])
 
     # ══════════════════════════════════════════════════════════════════
-    # LÍNEA AMARILLA SEPARADORA
+    # LÍNEA SEPARADORA
     # ══════════════════════════════════════════════════════════════════
-    line_y = badge_y - 15
-    c.setStrokeColor(COLOR_YELLOW)
-    c.setLineWidth(3)
-    c.line(card_x + 30, line_y, card_x + card_width - 30, line_y)
+    separator_y = photo_y - 30
+    c.setStrokeColor(COLOR_GRAY_BORDER)
+    c.setLineWidth(1)
+    c.line(margin_x, separator_y, page_width - margin_x, separator_y)
 
     # ══════════════════════════════════════════════════════════════════
-    # INFORMACIÓN ADICIONAL EN DOS COLUMNAS
+    # INFORMACIÓN ADICIONAL EN 3 COLUMNAS
     # ══════════════════════════════════════════════════════════════════
-    details_y = line_y - 25
-    col1_x = card_x + 35
-    col2_x = card_x + card_width/2 + 15
+    details_y = separator_y - 40
+    col_width = content_width / 3
+    col1_x = margin_x
+    col2_x = margin_x + col_width
+    col3_x = margin_x + col_width * 2
 
-    def draw_field(x, y, label, value, max_chars=22):
+    def draw_field(x, y, label, value, max_chars=25):
         c.setFillColor(COLOR_GRAY)
-        c.setFont("Helvetica-Bold", 8)
+        c.setFont("Helvetica-Bold", 9)
         c.drawString(x, y, label)
         c.setFillColor(COLOR_DARK)
-        c.setFont("Helvetica", 10)
+        c.setFont("Helvetica", 12)
         display_value = str(value)[:max_chars]
-        c.drawString(x, y - 12, display_value)
+        c.drawString(x, y - 15, display_value)
 
-    # Columna izquierda
-    draw_field(col1_x, details_y, "EMPRESA", proveedor, 20)
-    draw_field(col1_x, details_y - 35, "TIPO DE SERVICIO", tipo_servicio, 20)
-    draw_field(col1_x, details_y - 70, "NSS", nss)
-
-    # Columna derecha
+    draw_field(col1_x, details_y, "NSS", nss)
     draw_field(col2_x, details_y, "RFC EMPRESA", rfc_empresa)
-    draw_field(col2_x, details_y - 35, "CORREO", email, 22)
+    draw_field(col3_x, details_y, "CORREO ELECTRÓNICO", email, 28)
 
     # ══════════════════════════════════════════════════════════════════
     # FECHAS Y QR
     # ══════════════════════════════════════════════════════════════════
-    bottom_section_y = details_y - 115
+    bottom_y = details_y - 80
 
     # Fechas a la izquierda
     c.setFillColor(COLOR_GRAY)
-    c.setFont("Helvetica-Bold", 8)
-    c.drawString(col1_x, bottom_section_y, "FECHA DE EMISIÓN")
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(col1_x, bottom_y, "FECHA DE EMISIÓN")
     c.setFillColor(COLOR_DARK)
-    c.setFont("Helvetica", 10)
-    c.drawString(col1_x, bottom_section_y - 12, str(fecha_emision))
+    c.setFont("Helvetica", 14)
+    c.drawString(col1_x, bottom_y - 18, str(fecha_emision))
 
     c.setFillColor(COLOR_GRAY)
-    c.setFont("Helvetica-Bold", 8)
-    c.drawString(col1_x, bottom_section_y - 32, "VIGENTE HASTA")
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(col1_x, bottom_y - 45, "VIGENTE HASTA")
     c.setFillColor(status_color)
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(col1_x, bottom_section_y - 46, str(vencimiento))
+    c.setFont("Helvetica-Bold", 18)
+    c.drawString(col1_x, bottom_y - 65, str(vencimiento))
 
     # QR a la derecha
-    qr_size = 70
-    qr_x = card_x + card_width - qr_size - 40
-    qr_y = bottom_section_y - 50
-
     if qr_image_bytes:
         try:
+            qr_size = 100
+            qr_x = page_width - margin_x - qr_size
+            qr_y = bottom_y - 70
+
             qr_buffer = io.BytesIO(qr_image_bytes)
             qr_img = ImageReader(qr_buffer)
             c.drawImage(qr_img, qr_x, qr_y, width=qr_size, height=qr_size)
 
             c.setFillColor(COLOR_GRAY)
-            c.setFont("Helvetica", 7)
-            c.drawCentredString(qr_x + qr_size/2, qr_y - 10, "Escanea para verificar")
+            c.setFont("Helvetica", 9)
+            c.drawCentredString(qr_x + qr_size/2, qr_y - 12, "Escanea para verificar")
         except Exception as e:
             logger.warning(f"Could not draw QR: {e}")
 
     # ══════════════════════════════════════════════════════════════════
     # FOOTER
     # ══════════════════════════════════════════════════════════════════
-    footer_y = card_y + 20
+    footer_y = margin_y + 20
+
+    # Línea gris
+    c.setStrokeColor(COLOR_GRAY_BORDER)
+    c.setLineWidth(1)
+    c.line(margin_x, footer_y + 15, page_width - margin_x, footer_y + 15)
+
     c.setFillColor(COLOR_GRAY)
-    c.setFont("Helvetica", 7)
-    footer_text = f"Documento generado el {datetime.utcnow().strftime('%d/%m/%Y %H:%M')} UTC · © {datetime.utcnow().year} FEMSA - Entersys"
-    c.drawCentredString(card_x + card_width/2, footer_y, footer_text)
+    c.setFont("Helvetica", 9)
+    footer_text = f"Documento generado el {datetime.utcnow().strftime('%d/%m/%Y %H:%M')} UTC"
+    c.drawCentredString(page_width/2, footer_y, footer_text)
+
+    c.setFont("Helvetica", 8)
+    c.drawCentredString(page_width/2, footer_y - 12, f"© {datetime.utcnow().year} FEMSA - Entersys")
 
     # Guardar página
     c.save()
