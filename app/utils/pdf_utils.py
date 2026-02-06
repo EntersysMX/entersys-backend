@@ -1,6 +1,6 @@
 # app/utils/pdf_utils.py
 """
-Generación de PDF de credencial estilo tarjeta/gafete corporativo.
+Generación de PDF de constancia de capacitación estilo tarjeta corporativa.
 Diseño tipo ID card profesional.
 """
 import io
@@ -79,7 +79,7 @@ def generate_certificate_pdf(
     qr_image_bytes: Optional[bytes] = None
 ) -> bytes:
     """
-    Genera un PDF de credencial estilo tarjeta ID profesional.
+    Genera un PDF de constancia estilo tarjeta ID profesional.
     """
     buffer = io.BytesIO()
 
@@ -162,11 +162,11 @@ def generate_certificate_pdf(
     title_y = header_y - 35
     c.setFillColor(COLOR_DARK)
     c.setFont("Helvetica-Bold", 16)
-    c.drawCentredString(card_x + card_width/2, title_y, "CREDENCIAL DE SEGURIDAD")
+    c.drawCentredString(card_x + card_width/2, title_y, "CONSTANCIA DE CAPACITACIÓN")
 
     c.setFillColor(COLOR_GRAY)
     c.setFont("Helvetica", 10)
-    c.drawCentredString(card_x + card_width/2, title_y - 15, "Capacitación Onboarding KOF")
+    c.drawCentredString(card_x + card_width/2, title_y - 15, "Onboarding Seguridad KOF")
 
     # ══════════════════════════════════════════════════════════════════
     # FOTO DEL COLABORADOR
