@@ -149,3 +149,7 @@ cython_debug/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Service Account credentials (sensitive)
+service-account.json
+*-service-account.json

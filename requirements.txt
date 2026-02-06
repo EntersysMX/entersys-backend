@@ -46,6 +46,10 @@ Pillow>=9.0
 # Google Cloud Storage
 google-cloud-storage>=2.10.0
 
+# Gmail API
+google-api-python-client>=2.100.0
+google-auth>=2.23.0
+
 # Email Service (Resend)
 resend>=0.5.0
 

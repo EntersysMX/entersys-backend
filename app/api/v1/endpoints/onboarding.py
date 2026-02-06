@@ -10,11 +10,14 @@ from urllib.parse import quote
 import os
 import io
 import base64
-import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+
+# Gmail API imports
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 
 from pydantic import BaseModel
 from google.cloud import storage
@@ -94,15 +97,39 @@ def get_onboarding_service() -> OnboardingSmartsheetService:
     return OnboardingSmartsheetService()
 
 
-def send_email_via_smtp(
+def get_gmail_service():
+    """
+    Crea un servicio de Gmail API usando Service Account con domain-wide delegation.
+    El service account impersona a no-reply@entersys.mx para enviar correos.
+    """
+    SERVICE_ACCOUNT_FILE = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+        "service-account.json"
+    )
+
+    SCOPES = ['https://www.googleapis.com/auth/gmail.send']
+    DELEGATED_USER = settings.SMTP_FROM_EMAIL  # no-reply@entersys.mx
+
+    credentials = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE,
+        scopes=SCOPES
+    )
+
+    # Impersonar al usuario delegado
+    delegated_credentials = credentials.with_subject(DELEGATED_USER)
+
+    service = build('gmail', 'v1', credentials=delegated_credentials)
+    return service
+
+
+def send_email_via_gmail_api(
     to_emails: List[str],
     subject: str,
     html_content: str,
     attachments: List[dict] = None
 ) -> bool:
     """
-    Envía un email usando SMTP de Gmail/Google Workspace.
-    Incluye reintentos automáticos para manejar rate limiting.
+    Envía un email usando Gmail API con Service Account y domain-wide delegation.
 
     Args:
         to_emails: Lista de emails destinatarios
@@ -113,56 +140,64 @@ def send_email_via_smtp(
     Returns:
         True si el email se envió exitosamente
     """
-    import time
+    try:
+        # Crear mensaje MIME
+        if attachments:
+            msg = MIMEMultipart('mixed')
+            html_part = MIMEText(html_content, 'html', 'utf-8')
+            msg.attach(html_part)
 
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = subject
-    msg['From'] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-    msg['To'] = ', '.join(to_emails)
+            # Agregar adjuntos
+            for attachment in attachments:
+                filename = attachment.get("filename", "attachment")
+                content_b64 = attachment.get("content", "")
+                try:
+                    content_bytes = base64.b64decode(content_b64)
+                    part = MIMEBase('application', 'octet-stream')
+                    part.set_payload(content_bytes)
+                    encoders.encode_base64(part)
+                    part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
+                    msg.attach(part)
+                except Exception as e:
+                    logger.warning(f"Could not attach file {filename}: {e}")
+        else:
+            msg = MIMEMultipart('alternative')
+            html_part = MIMEText(html_content, 'html', 'utf-8')
+            msg.attach(html_part)
 
-    # Agregar contenido HTML
-    html_part = MIMEText(html_content, 'html', 'utf-8')
-    msg.attach(html_part)
+        msg['Subject'] = subject
+        msg['From'] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
+        msg['To'] = ', '.join(to_emails)
 
-    # Agregar adjuntos si hay
-    if attachments:
-        for attachment in attachments:
-            filename = attachment.get("filename", "attachment")
-            content_b64 = attachment.get("content", "")
-            try:
-                content_bytes = base64.b64decode(content_b64)
-                part = MIMEBase('application', 'octet-stream')
-                part.set_payload(content_bytes)
-                encoders.encode_base64(part)
-                part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
-                msg.attach(part)
-            except Exception as e:
-                logger.warning(f"Could not attach file {filename}: {e}")
+        # Codificar mensaje para Gmail API
+        raw_message = base64.urlsafe_b64encode(msg.as_bytes()).decode('utf-8')
 
-    # Reintentos con backoff para manejar rate limiting de Gmail
-    max_retries = 3
-    retry_delay = 5  # segundos
+        # Enviar via Gmail API
+        service = get_gmail_service()
+        message = service.users().messages().send(
+            userId='me',
+            body={'raw': raw_message}
+        ).execute()
 
-    for attempt in range(max_retries):
-        try:
-            # Usar SMTP_SSL (puerto 465) que es más estable que STARTTLS
-            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as server:
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.sendmail(settings.SMTP_FROM_EMAIL, to_emails, msg.as_string())
+        logger.info(f"Email sent successfully via Gmail API to {to_emails}, Message ID: {message.get('id')}")
+        return True
 
-            logger.info(f"Email sent successfully via SMTP_SSL to {to_emails}")
-            return True
+    except Exception as e:
+        logger.error(f"Error sending email via Gmail API to {to_emails}: {str(e)}")
+        return False
 
-        except Exception as e:
-            logger.warning(f"SMTP attempt {attempt + 1}/{max_retries} failed for {to_emails}: {str(e)}")
-            if attempt < max_retries - 1:
-                time.sleep(retry_delay)
-                retry_delay *= 2  # Backoff exponencial
-            else:
-                logger.error(f"Error sending email via SMTP to {to_emails} after {max_retries} attempts: {str(e)}")
-                return False
 
-    return False
+def send_email_via_smtp(
+    to_emails: List[str],
+    subject: str,
+    html_content: str,
+    attachments: List[dict] = None
+) -> bool:
+    """
+    Wrapper que usa Gmail API para enviar emails.
+    Mantiene el nombre de la función por compatibilidad.
+    """
+    return send_email_via_gmail_api(to_emails, subject, html_content, attachments)
 
 
 def send_email_via_resend(
