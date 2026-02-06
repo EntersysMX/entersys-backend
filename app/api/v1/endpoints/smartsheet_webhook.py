@@ -151,16 +151,14 @@ async def webhook_callback(request: Request):
                 f"reenviar_correo='{reenviar_check}'"
             )
 
-            # Si el trigger fue por "Reenviar correo", solo procesar si está checked
-            # (ignorar cuando se desmarca para evitar loop infinito con uncheck)
-            triggered_by_reenviar = row_id in reenviar_changed_rows
-            if triggered_by_reenviar:
-                reenviar_value = str(reenviar_check).strip().lower() if reenviar_check else ""
-                if reenviar_value not in ("true", "1", "yes", "sí", "si"):
-                    logger.info(
-                        f"Smartsheet webhook: row {row_id} 'Reenviar correo' unchecked, skipping"
-                    )
-                    continue
+            # SIEMPRE verificar que "Reenviar correo" esté activo para evitar envíos masivos
+            # Solo se procesa si el checkbox está marcado
+            reenviar_value = str(reenviar_check).strip().lower() if reenviar_check else ""
+            if reenviar_value not in ("true", "1", "yes", "sí", "si"):
+                logger.info(
+                    f"Smartsheet webhook: row {row_id} 'Reenviar correo' not checked, skipping"
+                )
+                continue
 
             if resultado != "aprobado":
                 logger.info(
