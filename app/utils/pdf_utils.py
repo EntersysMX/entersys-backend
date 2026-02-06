@@ -1,7 +1,7 @@
 # app/utils/pdf_utils.py
 """
-Generación de PDF de credencial de seguridad estilo gafete corporativo.
-Diseño compacto en una sola página.
+Generación de PDF de credencial estilo tarjeta/gafete corporativo.
+Diseño tipo ID card profesional.
 """
 import io
 import logging
@@ -10,15 +10,11 @@ import requests
 from datetime import datetime
 from typing import Dict, Any, Optional
 
-from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.units import inch, mm
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
-)
-from reportlab.lib.colors import HexColor
+from reportlab.lib.units import mm
+from reportlab.pdfgen import canvas
+from reportlab.lib.colors import HexColor, white, black
+from reportlab.lib.utils import ImageReader
 
 logger = logging.getLogger(__name__)
 
@@ -26,13 +22,11 @@ logger = logging.getLogger(__name__)
 COLOR_RED = HexColor("#D91E18")
 COLOR_YELLOW = HexColor("#FFC600")
 COLOR_DARK = HexColor("#1a1a1a")
-COLOR_GREEN = HexColor("#22c55e")
-COLOR_GREEN_DARK = HexColor("#16a34a")
-COLOR_RED_DARK = HexColor("#dc2626")
+COLOR_GREEN = HexColor("#16a34a")
+COLOR_RED_STATUS = HexColor("#dc2626")
 COLOR_GRAY = HexColor("#6b7280")
-COLOR_GRAY_LIGHT = HexColor("#f3f4f6")
-COLOR_GRAY_BORDER = HexColor("#d1d5db")
-COLOR_WHITE = HexColor("#FFFFFF")
+COLOR_GRAY_LIGHT = HexColor("#f5f5f5")
+COLOR_GRAY_BORDER = HexColor("#e0e0e0")
 
 # Path al logo
 LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "coca-cola-femsa-logo.png")
@@ -51,31 +45,56 @@ def fetch_photo_from_url(url: str) -> Optional[bytes]:
     return None
 
 
+def draw_rounded_rect(c, x, y, width, height, radius, fill_color=None, stroke_color=None, stroke_width=1):
+    """Dibuja un rectángulo con esquinas redondeadas."""
+    c.saveState()
+
+    path = c.beginPath()
+    path.moveTo(x + radius, y)
+    path.lineTo(x + width - radius, y)
+    path.arcTo(x + width - radius, y, x + width, y + radius, 90)
+    path.lineTo(x + width, y + height - radius)
+    path.arcTo(x + width - radius, y + height - radius, x + width, y + height, 0)
+    path.lineTo(x + radius, y + height)
+    path.arcTo(x, y + height - radius, x + radius, y + height, -90)
+    path.lineTo(x, y + radius)
+    path.arcTo(x, y, x + radius, y + radius, 180)
+    path.close()
+
+    if fill_color:
+        c.setFillColor(fill_color)
+        c.drawPath(path, fill=1, stroke=0)
+
+    if stroke_color:
+        c.setStrokeColor(stroke_color)
+        c.setLineWidth(stroke_width)
+        c.drawPath(path, fill=0, stroke=1)
+
+    c.restoreState()
+
+
 def generate_certificate_pdf(
     collaborator_data: Dict[str, Any],
     section_results: Optional[Dict[str, Any]] = None,
     qr_image_bytes: Optional[bytes] = None
 ) -> bytes:
     """
-    Genera un PDF de credencial estilo gafete corporativo.
+    Genera un PDF de credencial estilo tarjeta ID profesional.
     """
     buffer = io.BytesIO()
 
-    # Tamaño carta pero usaremos solo la parte superior
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=letter,
-        rightMargin=50,
-        leftMargin=50,
-        topMargin=40,
-        bottomMargin=40
-    )
+    # Crear canvas
+    c = canvas.Canvas(buffer, pagesize=letter)
+    page_width, page_height = letter
 
-    elements = []
-    page_width = letter[0] - 100
+    # Dimensiones de la tarjeta (tamaño credencial grande)
+    card_width = 400
+    card_height = 550
+    card_x = (page_width - card_width) / 2
+    card_y = (page_height - card_height) / 2
 
     is_approved = collaborator_data.get("is_approved", False)
-    status_color = COLOR_GREEN_DARK if is_approved else COLOR_RED_DARK
+    status_color = COLOR_GREEN if is_approved else COLOR_RED_STATUS
     resultado_text = "APROBADO" if is_approved else "NO APROBADO"
 
     # Extraer datos
@@ -90,251 +109,209 @@ def generate_certificate_pdf(
     fecha_emision = collaborator_data.get("fecha_emision", collaborator_data.get("fecha_examen", "N/A"))
     foto_url = collaborator_data.get("foto_url", "")
 
-    # ═══════════════════════════════════════════════════════════════
-    # HEADER: Logo centrado
-    # ═══════════════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════════════════
+    # FONDO DE LA TARJETA
+    # ══════════════════════════════════════════════════════════════════
+
+    # Sombra
+    c.setFillColor(HexColor("#00000015"))
+    draw_rounded_rect(c, card_x + 4, card_y - 4, card_width, card_height, 15, fill_color=HexColor("#cccccc"))
+
+    # Tarjeta principal blanca
+    draw_rounded_rect(c, card_x, card_y, card_width, card_height, 15, fill_color=white, stroke_color=COLOR_GRAY_BORDER, stroke_width=2)
+
+    # ══════════════════════════════════════════════════════════════════
+    # HEADER ROJO
+    # ══════════════════════════════════════════════════════════════════
+    header_height = 85
+    header_y = card_y + card_height - header_height
+
+    # Fondo rojo del header (con esquinas superiores redondeadas)
+    c.saveState()
+    path = c.beginPath()
+    path.moveTo(card_x, header_y)
+    path.lineTo(card_x + card_width, header_y)
+    path.lineTo(card_x + card_width, card_y + card_height - 15)
+    path.arcTo(card_x + card_width - 15, card_y + card_height - 15, card_x + card_width, card_y + card_height, 0)
+    path.lineTo(card_x + 15, card_y + card_height)
+    path.arcTo(card_x, card_y + card_height - 15, card_x + 15, card_y + card_height, -90)
+    path.lineTo(card_x, header_y)
+    path.close()
+    c.setFillColor(COLOR_RED)
+    c.drawPath(path, fill=1, stroke=0)
+    c.restoreState()
+
+    # Logo en el header
     if os.path.exists(LOGO_PATH):
         try:
-            logo = RLImage(LOGO_PATH, width=160, height=91)
-            logo.hAlign = 'CENTER'
-            elements.append(logo)
+            logo = ImageReader(LOGO_PATH)
+            logo_w, logo_h = 120, 50
+            logo_x = card_x + (card_width - logo_w) / 2
+            logo_y = header_y + (header_height - logo_h) / 2 + 5
+            c.drawImage(logo, logo_x, logo_y, width=logo_w, height=logo_h, preserveAspectRatio=True, mask='auto')
         except Exception as e:
             logger.warning(f"Could not load logo: {e}")
+            # Texto alternativo
+            c.setFillColor(white)
+            c.setFont("Helvetica-Bold", 18)
+            c.drawCentredString(card_x + card_width/2, header_y + 40, "COCA-COLA FEMSA")
 
-    elements.append(Spacer(1, 8))
-
-    # Línea roja superior
-    red_line = Table([['']], colWidths=[page_width])
-    red_line.setStyle(TableStyle([
-        ('LINEBELOW', (0, 0), (-1, 0), 3, COLOR_RED),
-    ]))
-    elements.append(red_line)
-    elements.append(Spacer(1, 15))
-
-    # ═══════════════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════════════════
     # TÍTULO
-    # ═══════════════════════════════════════════════════════════════
-    title_style = ParagraphStyle(
-        'Title',
-        fontSize=20,
-        textColor=COLOR_DARK,
-        alignment=TA_CENTER,
-        fontName='Helvetica-Bold',
-        spaceAfter=2,
-    )
-    elements.append(Paragraph("CREDENCIAL DE SEGURIDAD", title_style))
+    # ══════════════════════════════════════════════════════════════════
+    title_y = header_y - 35
+    c.setFillColor(COLOR_DARK)
+    c.setFont("Helvetica-Bold", 16)
+    c.drawCentredString(card_x + card_width/2, title_y, "CREDENCIAL DE SEGURIDAD")
 
-    subtitle_style = ParagraphStyle(
-        'Subtitle',
-        fontSize=10,
-        textColor=COLOR_GRAY,
-        alignment=TA_CENTER,
-        spaceAfter=12,
-    )
-    elements.append(Paragraph("Capacitación Onboarding KOF", subtitle_style))
+    c.setFillColor(COLOR_GRAY)
+    c.setFont("Helvetica", 10)
+    c.drawCentredString(card_x + card_width/2, title_y - 15, "Capacitación Onboarding KOF")
 
-    # ═══════════════════════════════════════════════════════════════
-    # BADGE DE ESTADO
-    # ═══════════════════════════════════════════════════════════════
-    badge_style = ParagraphStyle(
-        'Badge',
-        fontSize=12,
-        textColor=COLOR_WHITE,
-        alignment=TA_CENTER,
-        fontName='Helvetica-Bold',
-    )
-    badge = Table([[Paragraph(resultado_text, badge_style)]], colWidths=[140])
-    badge.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), status_color),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-    ]))
-    badge.hAlign = 'CENTER'
-    elements.append(badge)
-    elements.append(Spacer(1, 15))
+    # ══════════════════════════════════════════════════════════════════
+    # FOTO DEL COLABORADOR
+    # ══════════════════════════════════════════════════════════════════
+    photo_size = 110
+    photo_x = card_x + (card_width - photo_size) / 2
+    photo_y = title_y - photo_size - 30
 
-    # ═══════════════════════════════════════════════════════════════
-    # SECCIÓN PRINCIPAL: FOTO + DATOS
-    # ═══════════════════════════════════════════════════════════════
+    # Marco de la foto
+    draw_rounded_rect(c, photo_x - 3, photo_y - 3, photo_size + 6, photo_size + 6, 8,
+                     fill_color=COLOR_GRAY_LIGHT, stroke_color=COLOR_GRAY_BORDER, stroke_width=2)
 
-    # Obtener foto
-    photo_element = None
+    # Foto o placeholder
+    photo_drawn = False
     if foto_url:
         photo_bytes = fetch_photo_from_url(foto_url)
         if photo_bytes:
             try:
                 photo_buffer = io.BytesIO(photo_bytes)
-                photo_element = RLImage(photo_buffer, width=90, height=110)
+                photo_img = ImageReader(photo_buffer)
+                c.drawImage(photo_img, photo_x, photo_y, width=photo_size, height=photo_size,
+                           preserveAspectRatio=True, mask='auto')
+                photo_drawn = True
             except Exception as e:
-                logger.warning(f"Could not create photo: {e}")
+                logger.warning(f"Could not draw photo: {e}")
 
-    # Placeholder si no hay foto
-    if not photo_element:
-        placeholder_style = ParagraphStyle('ph', fontSize=8, textColor=COLOR_GRAY, alignment=TA_CENTER)
-        photo_element = Table(
-            [[Paragraph("FOTO", placeholder_style)]],
-            colWidths=[90], rowHeights=[110]
-        )
-        photo_element.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), COLOR_GRAY_LIGHT),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('BOX', (0, 0), (-1, -1), 1, COLOR_GRAY_BORDER),
-        ]))
+    if not photo_drawn:
+        # Placeholder
+        c.setFillColor(COLOR_GRAY)
+        c.setFont("Helvetica", 12)
+        c.drawCentredString(photo_x + photo_size/2, photo_y + photo_size/2, "SIN FOTO")
 
-    # Estilos para datos
-    name_style = ParagraphStyle('Name', fontSize=14, textColor=COLOR_DARK, fontName='Helvetica-Bold')
-    label_style = ParagraphStyle('Label', fontSize=7, textColor=COLOR_GRAY, fontName='Helvetica-Bold')
-    value_style = ParagraphStyle('Value', fontSize=9, textColor=COLOR_DARK, fontName='Helvetica')
+    # ══════════════════════════════════════════════════════════════════
+    # NOMBRE Y DATOS PRINCIPALES
+    # ══════════════════════════════════════════════════════════════════
+    info_y = photo_y - 30
 
-    # Datos al lado de la foto
-    info_data = [
-        [Paragraph(str(full_name).upper(), name_style)],
-        [Spacer(1, 4)],
-        [Paragraph("RFC", label_style)],
-        [Paragraph(str(rfc), value_style)],
-        [Spacer(1, 2)],
-        [Paragraph("EMPRESA", label_style)],
-        [Paragraph(str(proveedor)[:40], value_style)],
-        [Spacer(1, 2)],
-        [Paragraph("TIPO DE SERVICIO", label_style)],
-        [Paragraph(str(tipo_servicio)[:35], value_style)],
-    ]
-    info_table = Table(info_data, colWidths=[page_width - 110])
-    info_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 12),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-    ]))
+    # Nombre
+    c.setFillColor(COLOR_DARK)
+    c.setFont("Helvetica-Bold", 14)
+    name_display = str(full_name).upper()
+    if len(name_display) > 35:
+        name_display = name_display[:35] + "..."
+    c.drawCentredString(card_x + card_width/2, info_y, name_display)
 
-    # Combinar foto + datos
-    main_row = [[photo_element, info_table]]
-    main_table = Table(main_row, colWidths=[100, page_width - 110])
-    main_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('BOX', (0, 0), (0, 0), 1, COLOR_GRAY_BORDER),
-    ]))
-    elements.append(main_table)
-    elements.append(Spacer(1, 12))
+    # RFC
+    c.setFillColor(COLOR_GRAY)
+    c.setFont("Helvetica", 10)
+    c.drawCentredString(card_x + card_width/2, info_y - 18, f"RFC: {rfc}")
 
-    # Línea amarilla
-    yellow_line = Table([['']], colWidths=[page_width])
-    yellow_line.setStyle(TableStyle([
-        ('LINEBELOW', (0, 0), (-1, 0), 2, COLOR_YELLOW),
-    ]))
-    elements.append(yellow_line)
-    elements.append(Spacer(1, 10))
+    # ══════════════════════════════════════════════════════════════════
+    # BADGE DE ESTADO
+    # ══════════════════════════════════════════════════════════════════
+    badge_y = info_y - 50
+    badge_width = 140
+    badge_height = 28
+    badge_x = card_x + (card_width - badge_width) / 2
 
-    # ═══════════════════════════════════════════════════════════════
-    # DATOS ADICIONALES EN GRID
-    # ═══════════════════════════════════════════════════════════════
-    col_w = page_width / 3
+    draw_rounded_rect(c, badge_x, badge_y, badge_width, badge_height, 14, fill_color=status_color)
 
-    grid_data = [
-        [
-            [Paragraph("NSS", label_style), Paragraph(str(nss), value_style)],
-            [Paragraph("RFC EMPRESA", label_style), Paragraph(str(rfc_empresa), value_style)],
-            [Paragraph("CORREO", label_style), Paragraph(str(email)[:25], value_style)],
-        ],
-    ]
+    c.setFillColor(white)
+    c.setFont("Helvetica-Bold", 12)
+    c.drawCentredString(card_x + card_width/2, badge_y + 8, resultado_text)
 
-    # Crear celdas individuales
-    cell1 = Table([[Paragraph("NSS", label_style)], [Paragraph(str(nss), value_style)]], colWidths=[col_w])
-    cell2 = Table([[Paragraph("RFC EMPRESA", label_style)], [Paragraph(str(rfc_empresa), value_style)]], colWidths=[col_w])
-    cell3 = Table([[Paragraph("CORREO", label_style)], [Paragraph(str(email)[:28] + "..." if len(str(email)) > 28 else str(email), value_style)]], colWidths=[col_w])
+    # ══════════════════════════════════════════════════════════════════
+    # LÍNEA AMARILLA SEPARADORA
+    # ══════════════════════════════════════════════════════════════════
+    line_y = badge_y - 15
+    c.setStrokeColor(COLOR_YELLOW)
+    c.setLineWidth(3)
+    c.line(card_x + 30, line_y, card_x + card_width - 30, line_y)
 
-    for cell in [cell1, cell2, cell3]:
-        cell.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ]))
+    # ══════════════════════════════════════════════════════════════════
+    # INFORMACIÓN ADICIONAL EN DOS COLUMNAS
+    # ══════════════════════════════════════════════════════════════════
+    details_y = line_y - 25
+    col1_x = card_x + 35
+    col2_x = card_x + card_width/2 + 15
 
-    grid_row = [[cell1, cell2, cell3]]
-    grid_table = Table(grid_row, colWidths=[col_w, col_w, col_w])
-    grid_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-    ]))
-    elements.append(grid_table)
-    elements.append(Spacer(1, 12))
+    def draw_field(x, y, label, value, max_chars=22):
+        c.setFillColor(COLOR_GRAY)
+        c.setFont("Helvetica-Bold", 8)
+        c.drawString(x, y, label)
+        c.setFillColor(COLOR_DARK)
+        c.setFont("Helvetica", 10)
+        display_value = str(value)[:max_chars]
+        c.drawString(x, y - 12, display_value)
 
-    # ═══════════════════════════════════════════════════════════════
+    # Columna izquierda
+    draw_field(col1_x, details_y, "EMPRESA", proveedor, 20)
+    draw_field(col1_x, details_y - 35, "TIPO DE SERVICIO", tipo_servicio, 20)
+    draw_field(col1_x, details_y - 70, "NSS", nss)
+
+    # Columna derecha
+    draw_field(col2_x, details_y, "RFC EMPRESA", rfc_empresa)
+    draw_field(col2_x, details_y - 35, "CORREO", email, 22)
+
+    # ══════════════════════════════════════════════════════════════════
     # FECHAS Y QR
-    # ═══════════════════════════════════════════════════════════════
-    venc_color = COLOR_GREEN_DARK if is_approved else COLOR_RED_DARK
-    venc_style = ParagraphStyle('Venc', fontSize=11, textColor=venc_color, fontName='Helvetica-Bold')
+    # ══════════════════════════════════════════════════════════════════
+    bottom_section_y = details_y - 115
 
-    dates_data = [
-        [Paragraph("FECHA DE EMISIÓN", label_style)],
-        [Paragraph(str(fecha_emision), value_style)],
-        [Spacer(1, 6)],
-        [Paragraph("VIGENTE HASTA", label_style)],
-        [Paragraph(str(vencimiento), venc_style)],
-    ]
-    dates_table = Table(dates_data, colWidths=[150])
-    dates_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-    ]))
+    # Fechas a la izquierda
+    c.setFillColor(COLOR_GRAY)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(col1_x, bottom_section_y, "FECHA DE EMISIÓN")
+    c.setFillColor(COLOR_DARK)
+    c.setFont("Helvetica", 10)
+    c.drawString(col1_x, bottom_section_y - 12, str(fecha_emision))
 
-    # QR
-    qr_element = None
+    c.setFillColor(COLOR_GRAY)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(col1_x, bottom_section_y - 32, "VIGENTE HASTA")
+    c.setFillColor(status_color)
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(col1_x, bottom_section_y - 46, str(vencimiento))
+
+    # QR a la derecha
+    qr_size = 70
+    qr_x = card_x + card_width - qr_size - 40
+    qr_y = bottom_section_y - 50
+
     if qr_image_bytes:
         try:
             qr_buffer = io.BytesIO(qr_image_bytes)
-            qr_element = RLImage(qr_buffer, width=85, height=85)
+            qr_img = ImageReader(qr_buffer)
+            c.drawImage(qr_img, qr_x, qr_y, width=qr_size, height=qr_size)
+
+            c.setFillColor(COLOR_GRAY)
+            c.setFont("Helvetica", 7)
+            c.drawCentredString(qr_x + qr_size/2, qr_y - 10, "Escanea para verificar")
         except Exception as e:
-            logger.warning(f"Could not create QR: {e}")
+            logger.warning(f"Could not draw QR: {e}")
 
-    if qr_element:
-        qr_label = ParagraphStyle('QRLabel', fontSize=6, textColor=COLOR_GRAY, alignment=TA_CENTER)
-        qr_section = Table([
-            [qr_element],
-            [Paragraph("Escanea para verificar", qr_label)]
-        ], colWidths=[90])
-        qr_section.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ]))
-
-        bottom_row = [[dates_table, Spacer(1, 1), qr_section]]
-        bottom_table = Table(bottom_row, colWidths=[page_width - 120, 20, 100])
-    else:
-        bottom_table = dates_table
-
-    bottom_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-    ]))
-    elements.append(bottom_table)
-    elements.append(Spacer(1, 15))
-
-    # ═══════════════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════════════════
     # FOOTER
-    # ═══════════════════════════════════════════════════════════════
-    footer_line = Table([['']], colWidths=[page_width])
-    footer_line.setStyle(TableStyle([
-        ('LINEBELOW', (0, 0), (-1, 0), 1, COLOR_GRAY_BORDER),
-    ]))
-    elements.append(footer_line)
-    elements.append(Spacer(1, 8))
+    # ══════════════════════════════════════════════════════════════════
+    footer_y = card_y + 20
+    c.setFillColor(COLOR_GRAY)
+    c.setFont("Helvetica", 7)
+    footer_text = f"Documento generado el {datetime.utcnow().strftime('%d/%m/%Y %H:%M')} UTC · © {datetime.utcnow().year} FEMSA - Entersys"
+    c.drawCentredString(card_x + card_width/2, footer_y, footer_text)
 
-    footer_style = ParagraphStyle('Footer', fontSize=7, textColor=COLOR_GRAY, alignment=TA_CENTER)
-    elements.append(Paragraph(
-        f"Documento generado el {datetime.utcnow().strftime('%d/%m/%Y %H:%M')} UTC · © {datetime.utcnow().year} FEMSA - Entersys",
-        footer_style
-    ))
-
-    # Build PDF
-    try:
-        doc.build(elements)
-    except Exception as e:
-        logger.error(f"Error building PDF: {e}")
-        raise
+    # Guardar página
+    c.save()
 
     pdf_bytes = buffer.getvalue()
     buffer.close()
