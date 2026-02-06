@@ -11,7 +11,10 @@ from app.services.onboarding_smartsheet_service import (
     OnboardingSmartsheetService,
     OnboardingSmartsheetServiceError,
 )
-from app.api.v1.endpoints.onboarding import resend_approved_certificate_email
+from app.api.v1.endpoints.onboarding import resend_approved_certificate_email, send_qr_email
+from app.utils.qr_utils import generate_certificate_qr
+from datetime import timedelta
+import uuid as uuid_module
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -96,31 +99,21 @@ async def process_email_queue(job_id: str, row_ids: List[int]):
                 job["processed"] += 1
                 continue
 
-            if resultado != "aprobado":
-                result["status"] = "skipped"
-                result["error"] = f"resultado={resultado}"
-                job["skipped"] += 1
-                job["details"].append(result)
-                job["processed"] += 1
-                continue
-
-            if not cert_uuid or not str(cert_uuid).strip():
-                result["status"] = "skipped"
-                result["error"] = "no cert UUID"
-                job["skipped"] += 1
-                job["details"].append(result)
-                job["processed"] += 1
-                continue
-
+            # Verificar que tenga email
             if not nuevo_email or not str(nuevo_email).strip():
                 result["status"] = "skipped"
                 result["error"] = "empty email"
                 job["skipped"] += 1
                 job["details"].append(result)
                 job["processed"] += 1
+                # Desmarcar checkbox aunque no se envíe
+                try:
+                    await service.uncheck_reenviar_correo(row_id)
+                except Exception:
+                    pass
                 continue
 
-            # Extraer datos del colaborador para el PDF
+            # Extraer datos del colaborador
             collaborator_data = {
                 "nombre_completo": str(full_name).strip(),
                 "rfc_colaborador": row_data.get(service.COLUMN_RFC_COLABORADOR, ""),
@@ -137,42 +130,110 @@ async def process_email_queue(job_id: str, row_ids: List[int]):
                 "Ambiental": row_data.get(service.COLUMN_SECCION3, 0),
             }
 
-            # Enviar con reintentos
             vencimiento_str = str(vencimiento) if vencimiento else ""
             max_retries = 3
             sent = False
 
-            for attempt in range(max_retries):
-                try:
-                    sent = resend_approved_certificate_email(
-                        email_to=str(nuevo_email).strip(),
-                        full_name=str(full_name).strip(),
-                        cert_uuid=str(cert_uuid).strip(),
-                        expiration_date_str=vencimiento_str,
-                        collaborator_data=collaborator_data,
-                        section_results=section_results,
-                    )
-                    if sent:
-                        break
-                except Exception as send_error:
-                    logger.warning(f"Job {job_id}: Attempt {attempt+1} failed for {nuevo_email}: {send_error}")
-                    if attempt < max_retries - 1:
-                        await asyncio.sleep(5)  # Esperar antes de reintentar
+            # Procesar según resultado (aprobado o reprobado)
+            if resultado == "aprobado":
+                # Verificar que tenga UUID de certificado
+                if not cert_uuid or not str(cert_uuid).strip():
+                    result["status"] = "skipped"
+                    result["error"] = "aprobado but no cert UUID"
+                    job["skipped"] += 1
+                    job["details"].append(result)
+                    job["processed"] += 1
+                    try:
+                        await service.uncheck_reenviar_correo(row_id)
+                    except Exception:
+                        pass
+                    continue
 
+                # Enviar certificado de aprobado con reintentos
+                for attempt in range(max_retries):
+                    try:
+                        sent = resend_approved_certificate_email(
+                            email_to=str(nuevo_email).strip(),
+                            full_name=str(full_name).strip(),
+                            cert_uuid=str(cert_uuid).strip(),
+                            expiration_date_str=vencimiento_str,
+                            collaborator_data=collaborator_data,
+                            section_results=section_results,
+                        )
+                        if sent:
+                            break
+                    except Exception as send_error:
+                        logger.warning(f"Job {job_id}: Attempt {attempt+1} failed for {nuevo_email}: {send_error}")
+                        if attempt < max_retries - 1:
+                            await asyncio.sleep(5)
+
+            elif resultado == "reprobado":
+                # Enviar email de reprobado con reintentos
+                API_BASE_URL = "https://api.entersys.mx"
+
+                # Calcular score promedio
+                s1 = float(str(section_results.get("Seguridad", 0) or 0).replace('%', '').strip() or 0)
+                s2 = float(str(section_results.get("Inocuidad", 0) or 0).replace('%', '').strip() or 0)
+                s3 = float(str(section_results.get("Ambiental", 0) or 0).replace('%', '').strip() or 0)
+                overall_score = (s1 + s2 + s3) / 3 if (s1 or s2 or s3) else 0
+
+                # Generar QR de referencia
+                ref_uuid = cert_uuid if cert_uuid else str(uuid_module.uuid4())
+                qr_image = generate_certificate_qr(ref_uuid, API_BASE_URL)
+
+                # Fecha de expiración
+                exp_date = datetime.utcnow() + timedelta(days=365)
+
+                for attempt in range(max_retries):
+                    try:
+                        sent = send_qr_email(
+                            email_to=str(nuevo_email).strip(),
+                            full_name=str(full_name).strip(),
+                            qr_image=qr_image,
+                            expiration_date=exp_date,
+                            cert_uuid=ref_uuid,
+                            is_valid=False,
+                            score=overall_score
+                        )
+                        if sent:
+                            break
+                    except Exception as send_error:
+                        logger.warning(f"Job {job_id}: Attempt {attempt+1} failed for {nuevo_email} (reprobado): {send_error}")
+                        if attempt < max_retries - 1:
+                            await asyncio.sleep(5)
+            else:
+                # Resultado desconocido (ni aprobado ni reprobado)
+                result["status"] = "skipped"
+                result["error"] = f"unknown resultado={resultado}"
+                job["skipped"] += 1
+                job["details"].append(result)
+                job["processed"] += 1
+                try:
+                    await service.uncheck_reenviar_correo(row_id)
+                except Exception:
+                    pass
+                continue
+
+            # Resultado del envío (común para aprobado y reprobado)
             if sent:
                 result["status"] = "success"
+                result["resultado"] = resultado
                 job["success"] += 1
-                logger.info(f"Job {job_id}: Email sent to {nuevo_email}")
-                # Desmarcar checkbox
+                logger.info(f"Job {job_id}: Email sent to {nuevo_email} ({resultado})")
                 try:
                     await service.uncheck_reenviar_correo(row_id)
                 except Exception as uncheck_error:
                     logger.warning(f"Job {job_id}: Could not uncheck row {row_id}: {uncheck_error}")
             else:
                 result["status"] = "failed"
-                result["error"] = "send failed after retries"
+                result["error"] = f"send failed after retries ({resultado})"
                 job["failed"] += 1
-                logger.error(f"Job {job_id}: Failed to send to {nuevo_email}")
+                logger.error(f"Job {job_id}: Failed to send to {nuevo_email} ({resultado})")
+                # Igual desmarcar para evitar reintentos infinitos
+                try:
+                    await service.uncheck_reenviar_correo(row_id)
+                except Exception:
+                    pass
 
         except Exception as e:
             result["status"] = "error"
