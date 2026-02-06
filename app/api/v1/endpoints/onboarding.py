@@ -102,9 +102,11 @@ def get_gmail_service():
     Crea un servicio de Gmail API usando Service Account con domain-wide delegation.
     El service account impersona a no-reply@entersys.mx para enviar correos.
     """
-    SERVICE_ACCOUNT_FILE = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
-        "service-account.json"
+    # En Docker el archivo está en /app/service-account.json
+    # Localmente puede estar en la raíz del proyecto
+    SERVICE_ACCOUNT_FILE = os.environ.get(
+        "GOOGLE_APPLICATION_CREDENTIALS",
+        "/app/service-account.json"
     )
 
     SCOPES = ['https://www.googleapis.com/auth/gmail.send']
