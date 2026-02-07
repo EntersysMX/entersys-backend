@@ -119,11 +119,40 @@ class OnboardingErrorResponse(BaseModel):
 # Schemas para el formulario de examen público
 # ============================================
 
+class ExamCategoryOut(BaseModel):
+    """Categoría del examen (enviada al frontend)."""
+    id: int
+    name: str
+    color: str
+    display_order: int
+    questions_to_show: int
+    min_score_percent: int
+
+    class Config:
+        from_attributes = True
+
+
+class ExamQuestionOut(BaseModel):
+    """Pregunta del examen (SIN correct_answer, nunca se envía al frontend)."""
+    id: int
+    category_id: int
+    question_text: str
+    options: list[str]
+
+    class Config:
+        from_attributes = True
+
+
+class ExamConfigResponse(BaseModel):
+    """Respuesta del endpoint GET /exam-questions."""
+    categories: list[ExamCategoryOut]
+    questions: list[ExamQuestionOut]
+
+
 class ExamAnswer(BaseModel):
     """Respuesta individual de una pregunta del examen."""
-    question_id: int = Field(..., description="ID de la pregunta (1-30)", ge=1, le=30)
+    question_id: int = Field(..., description="ID de la pregunta en BD")
     answer: str = Field(..., description="Respuesta seleccionada")
-    is_correct: bool = Field(..., description="Si la respuesta es correcta")
 
 
 class SectionResult(BaseModel):
@@ -153,8 +182,8 @@ class ExamSubmitRequest(BaseModel):
     # URL de la foto de credencial (opcional, almacenada en GCS)
     url_imagen: Optional[str] = Field(None, description="URL de la foto de credencial en GCS")
 
-    # Respuestas del examen (30 preguntas divididas en 3 secciones)
-    answers: list[ExamAnswer] = Field(..., description="Lista de 30 respuestas", min_length=30, max_length=30)
+    # Respuestas del examen (dinámico según categorías activas)
+    answers: list[ExamAnswer] = Field(..., description="Lista de respuestas del examen")
 
     @field_validator('nombre_completo')
     @classmethod
@@ -179,8 +208,8 @@ class ExamSubmitRequest(BaseModel):
                 "proveedor": "Servicios Industriales SA",
                 "email": "juan.perez@empresa.com",
                 "answers": [
-                    {"question_id": 1, "answer": "Respuesta", "is_correct": True}
-                    # ... 30 respuestas
+                    {"question_id": 1, "answer": "Respuesta"}
+                    # ... respuestas del examen
                 ]
             }
         }

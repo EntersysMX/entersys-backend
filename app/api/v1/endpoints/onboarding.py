@@ -1,7 +1,8 @@
 # app/api/v1/endpoints/onboarding.py
-from fastapi import APIRouter, Query, HTTPException, BackgroundTasks, status, UploadFile, File, Form
+from fastapi import APIRouter, Query, HTTPException, BackgroundTasks, status, UploadFile, File, Form, Depends
 from fastapi.responses import RedirectResponse, StreamingResponse
 import logging
+import random
 import uuid
 from datetime import datetime, timedelta
 from typing import Optional, List
@@ -14,6 +15,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+from sqlalchemy.orm import Session
 
 # Gmail API imports
 from google.oauth2 import service_account
@@ -32,8 +34,13 @@ from app.schemas.onboarding_schemas import (
     ExamStatusResponse,
     SectionResult,
     ResendCertificateRequest,
-    ResendCertificateResponse
+    ResendCertificateResponse,
+    ExamCategoryOut,
+    ExamQuestionOut,
+    ExamConfigResponse,
 )
+from app.models.exam import ExamCategory, ExamQuestion
+from app.db.session import get_db
 
 
 class CertificateInfoResponse(BaseModel):
@@ -77,19 +84,11 @@ logger = logging.getLogger(__name__)
 
 # Constantes
 MINIMUM_SCORE = 80.0
-MINIMUM_SECTION_SCORE = 80.0  # Mínimo 80% en cada sección para aprobar
 CERTIFICATE_VALIDITY_DAYS = 365
 MAX_ATTEMPTS = 3
 API_BASE_URL = "https://api.entersys.mx"
 REDIRECT_VALID = "https://entersys.mx/certificacion-seguridad"
 REDIRECT_INVALID = "https://entersys.mx/access-denied"
-
-# Definición de secciones del examen
-EXAM_SECTIONS = {
-    1: {"name": "Seguridad", "questions": range(1, 11)},    # Preguntas 1-10
-    2: {"name": "Inocuidad", "questions": range(11, 21)},   # Preguntas 11-20
-    3: {"name": "Ambiental", "questions": range(21, 31)}    # Preguntas 21-30
-}
 
 
 def get_onboarding_service() -> OnboardingSmartsheetService:
@@ -1740,50 +1739,142 @@ async def check_exam_status(rfc: str, background_tasks: BackgroundTasks):
         )
 
 
-def calculate_section_results(answers: list) -> tuple:
+@router.get(
+    "/exam-questions",
+    response_model=ExamConfigResponse,
+    summary="Obtener preguntas del examen (dinámico)",
+    description="""
+    Retorna las categorías activas y un subconjunto aleatorio de preguntas
+    por categoría. Las opciones de cada pregunta también se aleatorizan.
+    **No incluye la respuesta correcta.**
+    """,
+)
+def get_exam_questions(db: Session = Depends(get_db)):
+    """Endpoint público que entrega preguntas aleatorias sin respuesta correcta."""
+    # 1. Categorías activas ordenadas
+    categories = (
+        db.query(ExamCategory)
+        .filter(ExamCategory.is_active.is_(True))
+        .order_by(ExamCategory.display_order)
+        .all()
+    )
+    if not categories:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="No hay categorías de examen configuradas.",
+        )
+
+    all_questions: list[ExamQuestionOut] = []
+    for cat in categories:
+        pool = (
+            db.query(ExamQuestion)
+            .filter(
+                ExamQuestion.category_id == cat.id,
+                ExamQuestion.is_active.is_(True),
+            )
+            .all()
+        )
+        # Seleccionar questions_to_show aleatorias (o todas si el pool es menor)
+        sample_size = min(cat.questions_to_show, len(pool))
+        selected = random.sample(pool, sample_size)
+
+        for q in selected:
+            shuffled_options = list(q.options)
+            random.shuffle(shuffled_options)
+            all_questions.append(
+                ExamQuestionOut(
+                    id=q.id,
+                    category_id=q.category_id,
+                    question_text=q.question_text,
+                    options=shuffled_options,
+                )
+            )
+
+    return ExamConfigResponse(
+        categories=[ExamCategoryOut.model_validate(c) for c in categories],
+        questions=all_questions,
+    )
+
+
+def calculate_section_results(answers: list, db: Session) -> tuple:
     """
-    Calcula los resultados por sección del examen.
+    Calcula los resultados por sección del examen, validando contra la BD.
 
     Args:
-        answers: Lista de 30 respuestas con question_id y is_correct
+        answers: Lista de respuestas con question_id y answer
+        db: Sesión de base de datos
 
     Returns:
-        Tuple de (section_results: list[SectionResult], section_scores: dict, is_approved: bool)
+        Tuple de (section_results: list[SectionResult], section_scores: dict,
+                  is_approved: bool, answers_results: list[dict])
     """
+    # Obtener los IDs de preguntas del request
+    question_ids = [a.question_id for a in answers]
+
+    # Cargar preguntas de la BD en una sola query
+    questions_db = (
+        db.query(ExamQuestion)
+        .filter(ExamQuestion.id.in_(question_ids))
+        .all()
+    )
+    question_map = {q.id: q for q in questions_db}
+
+    # Cargar categorías activas para construir secciones dinámicamente
+    categories = (
+        db.query(ExamCategory)
+        .filter(ExamCategory.is_active.is_(True))
+        .order_by(ExamCategory.display_order)
+        .all()
+    )
+
     section_results = []
     section_scores = {}
     all_sections_approved = True
+    answers_results = []
 
-    for section_num, section_info in EXAM_SECTIONS.items():
-        section_name = section_info["name"]
-        question_range = section_info["questions"]
-
-        # Contar respuestas correctas en esta sección
+    for idx, cat in enumerate(categories, start=1):
         correct_in_section = 0
-        for answer in answers:
-            if answer.question_id in question_range and answer.is_correct:
-                correct_in_section += 1
+        total_in_section = 0
 
-        # Calcular score de la sección (10 preguntas cada una)
-        section_score = (correct_in_section / 10) * 100
-        section_approved = section_score >= MINIMUM_SECTION_SCORE
+        for answer in answers:
+            q = question_map.get(answer.question_id)
+            if q is None:
+                continue
+            if q.category_id != cat.id:
+                continue
+
+            total_in_section += 1
+            is_correct = answer.answer == q.correct_answer
+            if is_correct:
+                correct_in_section += 1
+            answers_results.append({
+                "question_id": answer.question_id,
+                "is_correct": is_correct,
+            })
+
+        # Evitar división por cero
+        if total_in_section == 0:
+            section_score = 0.0
+        else:
+            section_score = (correct_in_section / total_in_section) * 100
+
+        section_approved = section_score >= cat.min_score_percent
 
         if not section_approved:
             all_sections_approved = False
 
         section_results.append(SectionResult(
-            section_name=section_name,
-            section_number=section_num,
+            section_name=cat.name,
+            section_number=idx,
             correct_count=correct_in_section,
-            total_questions=10,
+            total_questions=total_in_section,
             score=section_score,
-            approved=section_approved
+            approved=section_approved,
         ))
 
-        # Guardar score para Smartsheet
-        section_scores[f"Seccion{section_num}"] = section_score
+        section_scores[f"Seccion{idx}"] = section_score
 
-    return section_results, section_scores, all_sections_approved
+    return section_results, section_scores, all_sections_approved, answers_results
 
 
 @router.post(
@@ -1811,7 +1902,7 @@ def calculate_section_results(answers: list) -> tuple:
     5. Si es el 3er intento fallido, envía alerta y bloquea
     """
 )
-async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTasks):
+async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """
     Endpoint para enviar el examen de seguridad con 3 secciones.
     """
@@ -1846,25 +1937,20 @@ async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTa
                 can_retry=False
             )
 
-        # 2. Calcular resultados por sección
-        section_results, section_scores, is_approved = calculate_section_results(request.answers)
+        # 2. Calcular resultados por sección (server-side validation contra BD)
+        section_results, section_scores, is_approved, answers_results = calculate_section_results(
+            request.answers, db
+        )
 
         # Calcular score promedio general
-        overall_score = sum(s.score for s in section_results) / 3
+        num_sections = len(section_results)
+        overall_score = sum(s.score for s in section_results) / num_sections if num_sections else 0
 
         logger.info(
             f"RFC {request.rfc_colaborador}: "
-            f"Seccion1={section_scores['Seccion1']}%, "
-            f"Seccion2={section_scores['Seccion2']}%, "
-            f"Seccion3={section_scores['Seccion3']}%, "
-            f"Aprobado={is_approved}"
+            + ", ".join(f"{k}={v}%" for k, v in section_scores.items())
+            + f", Aprobado={is_approved}"
         )
-
-        # 3. Preparar datos de respuestas para bitácora
-        answers_results = [
-            {"question_id": a.question_id, "is_correct": a.is_correct}
-            for a in request.answers
-        ]
 
         # 4. Guardar resultados en Smartsheet
         # Preparar datos del colaborador para guardar en Smartsheet
@@ -1903,9 +1989,8 @@ async def submit_exam(request: ExamSubmitRequest, background_tasks: BackgroundTa
                 # Llamar a la lógica de generación de certificado
                 # Preparar section_results como dict para el PDF
                 section_results_for_pdf = {
-                    "Seguridad": section_scores.get("Seccion1", 0),
-                    "Inocuidad": section_scores.get("Seccion2", 0),
-                    "Ambiental": section_scores.get("Seccion3", 0),
+                    sr.section_name: sr.score
+                    for sr in section_results
                 }
                 try:
                     generate_result = await generate_certificate_internal(
