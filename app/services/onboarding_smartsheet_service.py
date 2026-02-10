@@ -1068,6 +1068,7 @@ class OnboardingSmartsheetService:
                         "proveedor": row_data.get(self.COLUMN_PROVEEDOR_EMPRESA),
                         "tipo_servicio": row_data.get(self.COLUMN_TIPO_SERVICIO),
                         "rfc_empresa": row_data.get(self.COLUMN_RFC_EMPRESA),
+                        "url_imagen": row_data.get(self.COLUMN_URL_IMAGEN),
                         "cert_uuid": row_data.get(self.COLUMN_UUID),
                         "vencimiento": row_data.get(self.COLUMN_VENCIMIENTO),
                         "fecha_examen": row_data.get(self.COLUMN_FECHA_EXAMEN),
@@ -1199,3 +1200,75 @@ class OnboardingSmartsheetService:
         except Exception as e:
             self.logger.error(f"Error unchecking 'Reenviar correo' for row {row_id}: {str(e)}")
             return False
+
+    async def update_collaborator_profile(self, row_id: int, fields: Dict[str, Any]) -> bool:
+        """
+        Actualiza columnas editables del perfil de un colaborador en la hoja de Registros.
+
+        Args:
+            row_id: ID de la fila en Smartsheet
+            fields: Diccionario con campos a actualizar. Claves válidas:
+                - email: Correo Electrónico
+                - nss: NSS del Colaborador
+                - proveedor: Proveedor / Empresa
+                - tipo_servicio: Tipo de Servicio
+                - url_imagen: url_imagen
+
+        Returns:
+            True si la actualización fue exitosa
+        """
+        # Mapeo de campos del request a nombres de columnas en Smartsheet
+        field_to_column = {
+            "email": self.COLUMN_CORREO_ELECTRONICO,
+            "nss": self.COLUMN_NSS_COLABORADOR,
+            "proveedor": self.COLUMN_PROVEEDOR_EMPRESA,
+            "tipo_servicio": self.COLUMN_TIPO_SERVICIO,
+            "url_imagen": self.COLUMN_URL_IMAGEN,
+        }
+
+        try:
+            await self._get_registros_column_maps()
+
+            cells = []
+            for field_key, value in fields.items():
+                column_name = field_to_column.get(field_key)
+                if not column_name:
+                    self.logger.warning(f"Unknown field '{field_key}' skipped in profile update")
+                    continue
+
+                col_id = self._registros_reverse_map.get(column_name)
+                if not col_id:
+                    self.logger.warning(f"Column '{column_name}' not found in sheet, skipping")
+                    continue
+
+                cells.append({
+                    "column_id": col_id,
+                    "value": value
+                })
+
+            if not cells:
+                self.logger.warning(f"No valid fields to update for row {row_id}")
+                return False
+
+            row_to_update = smartsheet.models.Row()
+            row_to_update.id = row_id
+            row_to_update.cells = [smartsheet.models.Cell(cell) for cell in cells]
+
+            response = self.client.Sheets.update_rows(self.SHEET_REGISTROS_ID, [row_to_update])
+
+            if response.message == 'SUCCESS':
+                self.logger.info(f"Successfully updated profile for row {row_id}, fields: {list(fields.keys())}")
+                return True
+            else:
+                self.logger.error(f"Unexpected response updating profile: {response.message}")
+                return False
+
+        except KeyError as e:
+            self.logger.error(f"Column not found updating profile for row {row_id}: {str(e)}")
+            raise OnboardingSmartsheetServiceError(f"Column not found: {str(e)}")
+        except smartsheet.exceptions.ApiError as e:
+            self.logger.error(f"Smartsheet API error updating profile for row {row_id}: {str(e)}")
+            raise OnboardingSmartsheetServiceError(f"Smartsheet API error: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Error updating profile for row {row_id}: {str(e)}")
+            raise OnboardingSmartsheetServiceError(f"Error updating profile: {str(e)}")

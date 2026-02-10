@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from google.cloud import storage
 from app.core.config import settings
 from app.schemas.onboarding_schemas import (
@@ -2546,4 +2546,193 @@ async def get_credential_by_rfc(rfc: str):
             rfc=rfc.upper(),
             is_expired=False,
             message="Error interno del servidor"
+        )
+
+
+# ============================================
+# Endpoints para actualización de perfil del colaborador
+# ============================================
+
+class ProfileVerifyRequest(BaseModel):
+    """Schema para verificación de identidad del colaborador."""
+    rfc: str = Field(..., description="RFC del colaborador", min_length=10, max_length=13)
+    nss: str = Field(..., description="NSS del colaborador", min_length=11, max_length=11)
+
+    @field_validator('rfc')
+    @classmethod
+    def validate_rfc(cls, v: str) -> str:
+        return v.strip().upper()
+
+    @field_validator('nss')
+    @classmethod
+    def validate_nss(cls, v: str) -> str:
+        v = v.strip()
+        if not v.isdigit():
+            raise ValueError('El NSS debe contener solo dígitos')
+        return v
+
+
+class ProfileUpdateRequest(BaseModel):
+    """Schema para actualización de perfil del colaborador."""
+    row_id: int = Field(..., description="ID de la fila en Smartsheet", gt=0)
+    rfc: str = Field(..., description="RFC del colaborador (para re-verificación)", min_length=10, max_length=13)
+    nss_original: str = Field(..., description="NSS original para re-verificar identidad", min_length=11, max_length=11)
+    email: Optional[str] = Field(None, description="Nuevo correo electrónico")
+    nss: Optional[str] = Field(None, description="Nuevo NSS", max_length=11)
+    proveedor: Optional[str] = Field(None, description="Nuevo proveedor / empresa")
+    tipo_servicio: Optional[str] = Field(None, description="Nuevo tipo de servicio")
+    url_imagen: Optional[str] = Field(None, description="Nueva URL de foto de credencial")
+
+    @field_validator('rfc')
+    @classmethod
+    def validate_rfc(cls, v: str) -> str:
+        return v.strip().upper()
+
+    @field_validator('nss_original', 'nss')
+    @classmethod
+    def validate_nss(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            v = v.strip()
+            if v and not v.isdigit():
+                raise ValueError('El NSS debe contener solo dígitos')
+        return v
+
+
+@router.post(
+    "/profile/verify",
+    summary="Verificar identidad del colaborador para actualización de perfil",
+    description="""
+    Verifica la identidad del colaborador usando RFC + NSS.
+    Si los datos coinciden, retorna la información actual del perfil.
+    """
+)
+async def verify_profile(request: ProfileVerifyRequest):
+    """
+    Verifica RFC + NSS y retorna datos actuales del colaborador.
+    """
+    logger.info(f"POST /onboarding/profile/verify - RFC={request.rfc}")
+
+    try:
+        service = OnboardingSmartsheetService()
+        collaborator = await service.get_collaborator_by_rfc_and_nss(request.rfc, request.nss)
+
+        if not collaborator:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Datos incorrectos. Verifica tu RFC y NSS."
+            )
+
+        return {
+            "success": True,
+            "row_id": collaborator.get("row_id"),
+            "nombre": collaborator.get("full_name", ""),
+            "rfc": collaborator.get("rfc", ""),
+            "rfc_empresa": collaborator.get("rfc_empresa", ""),
+            "email": collaborator.get("email", ""),
+            "nss": collaborator.get("nss", ""),
+            "proveedor": collaborator.get("proveedor", ""),
+            "tipo_servicio": collaborator.get("tipo_servicio", ""),
+            "url_imagen": collaborator.get("url_imagen", ""),
+        }
+
+    except HTTPException:
+        raise
+    except OnboardingSmartsheetServiceError as e:
+        logger.error(f"Smartsheet error in profile/verify: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al consultar el sistema"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error in profile/verify: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error interno del servidor"
+        )
+
+
+@router.put(
+    "/profile/update",
+    summary="Actualizar perfil del colaborador",
+    description="""
+    Actualiza los datos editables del perfil de un colaborador.
+    Re-verifica identidad con RFC + NSS original antes de aplicar cambios.
+
+    Campos actualizables: email, NSS, proveedor/empresa, tipo de servicio, foto.
+    """
+)
+async def update_profile(request: ProfileUpdateRequest):
+    """
+    Actualiza datos del perfil del colaborador en Smartsheet.
+    """
+    logger.info(f"PUT /onboarding/profile/update - RFC={request.rfc}, row_id={request.row_id}")
+
+    try:
+        service = OnboardingSmartsheetService()
+
+        # Re-verificar identidad con RFC + NSS original
+        collaborator = await service.get_collaborator_by_rfc_and_nss(request.rfc, request.nss_original)
+
+        if not collaborator:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No se pudo verificar tu identidad. Verifica tus datos."
+            )
+
+        if collaborator.get("row_id") != request.row_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Error de verificación. Los datos no coinciden."
+            )
+
+        # Construir dict de campos a actualizar (solo los que se enviaron)
+        fields_to_update = {}
+        if request.email is not None:
+            fields_to_update["email"] = request.email
+        if request.nss is not None:
+            fields_to_update["nss"] = request.nss
+        if request.proveedor is not None:
+            fields_to_update["proveedor"] = request.proveedor
+        if request.tipo_servicio is not None:
+            fields_to_update["tipo_servicio"] = request.tipo_servicio
+        if request.url_imagen is not None:
+            fields_to_update["url_imagen"] = request.url_imagen
+
+        if not fields_to_update:
+            return {
+                "success": True,
+                "message": "No hay cambios que aplicar",
+                "updated_fields": []
+            }
+
+        # Actualizar en Smartsheet
+        updated = await service.update_collaborator_profile(request.row_id, fields_to_update)
+
+        if not updated:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error al actualizar los datos en el sistema"
+            )
+
+        logger.info(f"Profile updated for RFC={request.rfc}, fields: {list(fields_to_update.keys())}")
+
+        return {
+            "success": True,
+            "message": "Perfil actualizado exitosamente",
+            "updated_fields": list(fields_to_update.keys())
+        }
+
+    except HTTPException:
+        raise
+    except OnboardingSmartsheetServiceError as e:
+        logger.error(f"Smartsheet error in profile/update: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error al actualizar en el sistema"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error in profile/update: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error interno del servidor"
         )
