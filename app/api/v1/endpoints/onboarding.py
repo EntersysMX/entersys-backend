@@ -2577,6 +2577,9 @@ class ProfileUpdateRequest(BaseModel):
     row_id: int = Field(..., description="ID de la fila en Smartsheet", gt=0)
     rfc: str = Field(..., description="RFC del colaborador (para re-verificación)", min_length=10, max_length=13)
     nss_original: str = Field(..., description="NSS original para re-verificar identidad", min_length=11, max_length=11)
+    nombre: Optional[str] = Field(None, description="Nuevo nombre del colaborador")
+    rfc_colaborador: Optional[str] = Field(None, description="Nuevo RFC del colaborador", max_length=13)
+    rfc_empresa: Optional[str] = Field(None, description="Nuevo RFC de la empresa", max_length=13)
     email: Optional[str] = Field(None, description="Nuevo correo electrónico")
     nss: Optional[str] = Field(None, description="Nuevo NSS", max_length=11)
     proveedor: Optional[str] = Field(None, description="Nuevo proveedor / empresa")
@@ -2687,6 +2690,12 @@ async def update_profile(request: ProfileUpdateRequest):
 
         # Construir dict de campos a actualizar (solo los que se enviaron)
         fields_to_update = {}
+        if request.nombre is not None:
+            fields_to_update["nombre"] = request.nombre
+        if request.rfc_colaborador is not None:
+            fields_to_update["rfc_colaborador"] = request.rfc_colaborador
+        if request.rfc_empresa is not None:
+            fields_to_update["rfc_empresa"] = request.rfc_empresa
         if request.email is not None:
             fields_to_update["email"] = request.email
         if request.nss is not None:

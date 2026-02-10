@@ -1208,6 +1208,9 @@ class OnboardingSmartsheetService:
         Args:
             row_id: ID de la fila en Smartsheet
             fields: Diccionario con campos a actualizar. Claves válidas:
+                - nombre: Nombre Colaborador
+                - rfc_colaborador: RFC del Colaborador
+                - rfc_empresa: RFC de la Empresa
                 - email: Correo Electrónico
                 - nss: NSS del Colaborador
                 - proveedor: Proveedor / Empresa
@@ -1219,6 +1222,9 @@ class OnboardingSmartsheetService:
         """
         # Mapeo de campos del request a nombres de columnas en Smartsheet
         field_to_column = {
+            "nombre": self.COLUMN_NOMBRE_COLABORADOR,
+            "rfc_colaborador": self.COLUMN_RFC_COLABORADOR,
+            "rfc_empresa": self.COLUMN_RFC_EMPRESA,
             "email": self.COLUMN_CORREO_ELECTRONICO,
             "nss": self.COLUMN_NSS_COLABORADOR,
             "proveedor": self.COLUMN_PROVEEDOR_EMPRESA,
