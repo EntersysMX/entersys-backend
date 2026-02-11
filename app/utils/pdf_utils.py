@@ -80,6 +80,14 @@ def generate_certificate_pdf(
     fecha_emision = collaborator_data.get("fecha_emision", collaborator_data.get("fecha_examen", "N/A"))
     foto_url = collaborator_data.get("foto_url", "")
 
+    # Validar que la foto esté disponible - nunca generar PDF sin foto
+    if not foto_url:
+        raise ValueError("No se puede generar el PDF sin foto del colaborador (foto_url vacío)")
+
+    photo_bytes = fetch_photo_from_url(foto_url)
+    if not photo_bytes:
+        raise ValueError(f"No se puede generar el PDF: no se pudo descargar la foto desde {foto_url}")
+
     # ══════════════════════════════════════════════════════════════════
     # HEADER - Barra roja superior con logo
     # ══════════════════════════════════════════════════════════════════
@@ -139,24 +147,11 @@ def generate_certificate_pdf(
     c.setFillColor(COLOR_GRAY_LIGHT)
     c.rect(photo_x, photo_y, photo_size, photo_size, fill=1, stroke=0)
 
-    # Dibujar foto o placeholder
-    photo_drawn = False
-    if foto_url:
-        photo_bytes = fetch_photo_from_url(foto_url)
-        if photo_bytes:
-            try:
-                photo_buffer = io.BytesIO(photo_bytes)
-                photo_img = ImageReader(photo_buffer)
-                c.drawImage(photo_img, photo_x, photo_y, width=photo_size, height=photo_size,
-                           preserveAspectRatio=True, mask='auto')
-                photo_drawn = True
-            except Exception as e:
-                logger.warning(f"Could not draw photo: {e}")
-
-    if not photo_drawn:
-        c.setFillColor(COLOR_GRAY)
-        c.setFont("Helvetica", 14)
-        c.drawCentredString(photo_x + photo_size/2, photo_y + photo_size/2, "SIN FOTO")
+    # Dibujar foto (ya validada y descargada arriba)
+    photo_buffer = io.BytesIO(photo_bytes)
+    photo_img = ImageReader(photo_buffer)
+    c.drawImage(photo_img, photo_x, photo_y, width=photo_size, height=photo_size,
+               preserveAspectRatio=True, mask='auto')
 
     # Datos a la derecha de la foto
     info_x = photo_x + photo_size + 40

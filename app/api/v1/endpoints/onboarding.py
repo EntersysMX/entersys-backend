@@ -515,8 +515,11 @@ def send_qr_email(
                     "fecha_emision": datetime.utcnow().strftime('%d/%m/%Y'),
                     "is_approved": True,
                 })
+                # Map url_imagen -> foto_url for PDF generation
+                if "foto_url" not in pdf_data and "url_imagen" in pdf_data:
+                    pdf_data["foto_url"] = pdf_data["url_imagen"]
 
-                # Generar PDF
+                # Generar PDF (will raise ValueError if photo is not available)
                 pdf_bytes = generate_certificate_pdf(
                     collaborator_data=pdf_data,
                     section_results=section_results,
@@ -1594,8 +1597,11 @@ def resend_approved_certificate_email(
                     "fecha_emision": datetime.utcnow().strftime('%d/%m/%Y'),
                     "is_approved": True,
                 })
+                # Map url_imagen -> foto_url for PDF generation
+                if "foto_url" not in pdf_data and "url_imagen" in pdf_data:
+                    pdf_data["foto_url"] = pdf_data["url_imagen"]
 
-                # Generar PDF
+                # Generar PDF (will raise ValueError if photo is not available)
                 pdf_bytes = generate_certificate_pdf(
                     collaborator_data=pdf_data,
                     section_results=section_results,
@@ -2410,6 +2416,7 @@ async def download_certificate_pdf(rfc: str):
             "vencimiento": credential_data.get("vencimiento"),
             "fecha_emision": credential_data.get("fecha_emision"),
             "is_approved": credential_data.get("is_approved", False),
+            "foto_url": credential_data.get("url_imagen", ""),
         }
 
         # Generar PDF
@@ -2430,6 +2437,12 @@ async def download_certificate_pdf(rfc: str):
 
     except HTTPException:
         raise
+    except ValueError as e:
+        logger.warning(f"Cannot generate PDF for RFC {rfc}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se puede generar el certificado PDF porque el colaborador no tiene foto registrada."
+        )
     except OnboardingSmartsheetServiceError as e:
         logger.error(f"Smartsheet error downloading certificate: {str(e)}")
         raise HTTPException(
