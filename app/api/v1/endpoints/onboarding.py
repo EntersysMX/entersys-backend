@@ -2746,13 +2746,17 @@ async def update_profile(request: ProfileUpdateRequest):
                             "seccion3": s3,
                         }
 
+                        # Map url_imagen -> foto_url for PDF generation
+                        pdf_collaborator_data = updated_collaborator.copy()
+                        pdf_collaborator_data["foto_url"] = updated_collaborator.get("url_imagen", "")
+
                         # Resend approved certificate with updated data and PDF
                         email_sent = resend_approved_certificate_email(
                             email_to=email,
                             full_name=full_name,
                             cert_uuid=cert_uuid,
                             expiration_date_str=str(vencimiento) if vencimiento else "",
-                            collaborator_data=updated_collaborator,
+                            collaborator_data=pdf_collaborator_data,
                             section_results=section_results
                         )
                     else:
