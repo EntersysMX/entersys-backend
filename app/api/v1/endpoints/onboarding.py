@@ -2736,12 +2736,24 @@ async def update_profile(request: ProfileUpdateRequest):
                     email_masked = mask_email(email)
 
                     if is_approved and cert_uuid:
-                        # Resend approved certificate with updated data
+                        # Build section results for PDF generation
+                        s1 = float(str(updated_collaborator.get("seccion1", 0) or 0).replace('%', '').strip() or 0)
+                        s2 = float(str(updated_collaborator.get("seccion2", 0) or 0).replace('%', '').strip() or 0)
+                        s3 = float(str(updated_collaborator.get("seccion3", 0) or 0).replace('%', '').strip() or 0)
+                        section_results = {
+                            "seccion1": s1,
+                            "seccion2": s2,
+                            "seccion3": s3,
+                        }
+
+                        # Resend approved certificate with updated data and PDF
                         email_sent = resend_approved_certificate_email(
                             email_to=email,
                             full_name=full_name,
                             cert_uuid=cert_uuid,
-                            expiration_date_str=str(vencimiento) if vencimiento else ""
+                            expiration_date_str=str(vencimiento) if vencimiento else "",
+                            collaborator_data=updated_collaborator,
+                            section_results=section_results
                         )
                     else:
                         # Resend exam result email (rejected or no cert_uuid)
