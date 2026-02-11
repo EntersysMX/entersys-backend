@@ -2578,10 +2578,8 @@ class ProfileUpdateRequest(BaseModel):
     rfc: str = Field(..., description="RFC del colaborador (para re-verificación)", min_length=10, max_length=13)
     nss_original: str = Field(..., description="NSS original para re-verificar identidad", min_length=11, max_length=11)
     nombre: Optional[str] = Field(None, description="Nuevo nombre del colaborador")
-    rfc_colaborador: Optional[str] = Field(None, description="Nuevo RFC del colaborador", max_length=13)
     rfc_empresa: Optional[str] = Field(None, description="Nuevo RFC de la empresa", max_length=13)
     email: Optional[str] = Field(None, description="Nuevo correo electrónico")
-    nss: Optional[str] = Field(None, description="Nuevo NSS", max_length=11)
     proveedor: Optional[str] = Field(None, description="Nuevo proveedor / empresa")
     tipo_servicio: Optional[str] = Field(None, description="Nuevo tipo de servicio")
     url_imagen: Optional[str] = Field(None, description="Nueva URL de foto de credencial")
@@ -2591,13 +2589,12 @@ class ProfileUpdateRequest(BaseModel):
     def validate_rfc(cls, v: str) -> str:
         return v.strip().upper()
 
-    @field_validator('nss_original', 'nss')
+    @field_validator('nss_original')
     @classmethod
-    def validate_nss(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None:
-            v = v.strip()
-            if v and not v.isdigit():
-                raise ValueError('El NSS debe contener solo dígitos')
+    def validate_nss(cls, v: str) -> str:
+        v = v.strip()
+        if not v.isdigit():
+            raise ValueError('El NSS debe contener solo dígitos')
         return v
 
 
@@ -2661,7 +2658,8 @@ async def verify_profile(request: ProfileVerifyRequest):
     Actualiza los datos editables del perfil de un colaborador.
     Re-verifica identidad con RFC + NSS original antes de aplicar cambios.
 
-    Campos actualizables: email, NSS, proveedor/empresa, tipo de servicio, foto.
+    Campos actualizables: nombre, RFC empresa, email, proveedor/empresa, tipo de servicio, foto.
+    Campos NO editables (por seguridad): RFC colaborador, NSS.
     """
 )
 async def update_profile(request: ProfileUpdateRequest):
@@ -2689,17 +2687,14 @@ async def update_profile(request: ProfileUpdateRequest):
             )
 
         # Construir dict de campos a actualizar (solo los que se enviaron)
+        # NOTA: RFC colaborador y NSS NO son editables por seguridad
         fields_to_update = {}
         if request.nombre is not None:
             fields_to_update["nombre"] = request.nombre
-        if request.rfc_colaborador is not None:
-            fields_to_update["rfc_colaborador"] = request.rfc_colaborador
         if request.rfc_empresa is not None:
             fields_to_update["rfc_empresa"] = request.rfc_empresa
         if request.email is not None:
             fields_to_update["email"] = request.email
-        if request.nss is not None:
-            fields_to_update["nss"] = request.nss
         if request.proveedor is not None:
             fields_to_update["proveedor"] = request.proveedor
         if request.tipo_servicio is not None:
@@ -2725,10 +2720,70 @@ async def update_profile(request: ProfileUpdateRequest):
 
         logger.info(f"Profile updated for RFC={request.rfc}, fields: {list(fields_to_update.keys())}")
 
+        # Re-fetch collaborator data with updated values to resend certificate email
+        email_sent = False
+        email_masked = None
+        try:
+            updated_collaborator = await service.get_collaborator_by_rfc_and_nss(request.rfc, request.nss_original)
+            if updated_collaborator:
+                email = updated_collaborator.get("email")
+                full_name = updated_collaborator.get("full_name", "Colaborador")
+                cert_uuid = updated_collaborator.get("cert_uuid")
+                vencimiento = updated_collaborator.get("vencimiento", "")
+                is_approved = updated_collaborator.get("is_approved", False)
+
+                if email:
+                    email_masked = mask_email(email)
+
+                    if is_approved and cert_uuid:
+                        # Resend approved certificate with updated data
+                        email_sent = resend_approved_certificate_email(
+                            email_to=email,
+                            full_name=full_name,
+                            cert_uuid=cert_uuid,
+                            expiration_date_str=str(vencimiento) if vencimiento else ""
+                        )
+                    else:
+                        # Resend exam result email (rejected or no cert_uuid)
+                        qr_image = generate_certificate_qr(cert_uuid or str(uuid.uuid4()), API_BASE_URL)
+
+                        s1 = float(str(updated_collaborator.get("seccion1", 0) or 0).replace('%', '').strip() or 0)
+                        s2 = float(str(updated_collaborator.get("seccion2", 0) or 0).replace('%', '').strip() or 0)
+                        s3 = float(str(updated_collaborator.get("seccion3", 0) or 0).replace('%', '').strip() or 0)
+                        overall_score = (s1 + s2 + s3) / 3 if (s1 or s2 or s3) else 0
+
+                        exp_date = datetime.utcnow() + timedelta(days=365)
+                        if vencimiento:
+                            for fmt in ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y']:
+                                try:
+                                    exp_date = datetime.strptime(str(vencimiento), fmt)
+                                    break
+                                except ValueError:
+                                    continue
+
+                        email_sent = send_qr_email(
+                            email_to=email,
+                            full_name=full_name,
+                            qr_image=qr_image,
+                            expiration_date=exp_date,
+                            cert_uuid=cert_uuid or "N/A",
+                            is_valid=False,
+                            score=overall_score
+                        )
+
+                    if email_sent:
+                        logger.info(f"Certificate email resent to {email_masked} after profile update for RFC={request.rfc}")
+                    else:
+                        logger.warning(f"Failed to resend certificate email after profile update for RFC={request.rfc}")
+        except Exception as email_error:
+            logger.warning(f"Error resending certificate email after profile update: {str(email_error)}")
+
         return {
             "success": True,
             "message": "Perfil actualizado exitosamente",
-            "updated_fields": list(fields_to_update.keys())
+            "updated_fields": list(fields_to_update.keys()),
+            "email_sent": email_sent,
+            "email_masked": email_masked
         }
 
     except HTTPException:
