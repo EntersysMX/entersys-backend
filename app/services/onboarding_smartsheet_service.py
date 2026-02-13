@@ -163,27 +163,14 @@ class OnboardingSmartsheetService:
             # Construir las celdas a actualizar
             cells = [
                 {
-                    'column_id': self._get_column_id(self.COLUMN_CERT_UUID),
+                    'column_id': self._get_column_id(self.COLUMN_UUID),
                     'value': cert_uuid
                 },
                 {
-                    'column_id': self._get_column_id(self.COLUMN_EXPIRATION),
+                    'column_id': self._get_column_id(self.COLUMN_VENCIMIENTO),
                     'value': expiration_date.strftime('%Y-%m-%d')
-                },
-                {
-                    'column_id': self._get_column_id(self.COLUMN_QR_SENT),
-                    'value': True
                 }
             ]
-
-            # Agregar columna de validez si existe
-            try:
-                cells.append({
-                    'column_id': self._get_column_id(self.COLUMN_CERT_VALID),
-                    'value': is_valid
-                })
-            except OnboardingSmartsheetServiceError:
-                self.logger.warning(f"Column '{self.COLUMN_CERT_VALID}' not found, skipping")
 
             # Crear objeto de fila para actualización
             row_to_update = smartsheet.models.Row()
