@@ -96,33 +96,6 @@ def get_onboarding_service() -> OnboardingSmartsheetService:
     return OnboardingSmartsheetService()
 
 
-def get_gmail_service():
-    """
-    Crea un servicio de Gmail API usando Service Account con domain-wide delegation.
-    El service account impersona a no-reply@entersys.mx para enviar correos.
-    """
-    # En Docker el archivo está en /app/service-account.json
-    # Localmente puede estar en la raíz del proyecto
-    SERVICE_ACCOUNT_FILE = os.environ.get(
-        "GOOGLE_APPLICATION_CREDENTIALS",
-        "/app/service-account.json"
-    )
-
-    SCOPES = ['https://www.googleapis.com/auth/gmail.send']
-    DELEGATED_USER = settings.SMTP_FROM_EMAIL  # no-reply@entersys.mx
-
-    credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE,
-        scopes=SCOPES
-    )
-
-    # Impersonar al usuario delegado
-    delegated_credentials = credentials.with_subject(DELEGATED_USER)
-
-    service = build('gmail', 'v1', credentials=delegated_credentials)
-    return service
-
-
 def send_email_via_gmail_api(
     to_emails: List[str],
     subject: str,
@@ -130,62 +103,17 @@ def send_email_via_gmail_api(
     attachments: List[dict] = None
 ) -> bool:
     """
-    Envía un email usando Gmail API con Service Account y domain-wide delegation.
-
-    Args:
-        to_emails: Lista de emails destinatarios
-        subject: Asunto del email
-        html_content: Contenido HTML del email
-        attachments: Lista de adjuntos [{"filename": "name.png", "content": base64_string}]
-
-    Returns:
-        True si el email se envió exitosamente
+    Envía un email usando el servicio centralizado de Gmail.
+    Wrapper de compatibilidad sobre GmailService.
     """
-    try:
-        # Crear mensaje MIME
-        if attachments:
-            msg = MIMEMultipart('mixed')
-            html_part = MIMEText(html_content, 'html', 'utf-8')
-            msg.attach(html_part)
-
-            # Agregar adjuntos
-            for attachment in attachments:
-                filename = attachment.get("filename", "attachment")
-                content_b64 = attachment.get("content", "")
-                try:
-                    content_bytes = base64.b64decode(content_b64)
-                    part = MIMEBase('application', 'octet-stream')
-                    part.set_payload(content_bytes)
-                    encoders.encode_base64(part)
-                    part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
-                    msg.attach(part)
-                except Exception as e:
-                    logger.warning(f"Could not attach file {filename}: {e}")
-        else:
-            msg = MIMEMultipart('alternative')
-            html_part = MIMEText(html_content, 'html', 'utf-8')
-            msg.attach(html_part)
-
-        msg['Subject'] = subject
-        msg['From'] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_EMAIL}>"
-        msg['To'] = ', '.join(to_emails)
-
-        # Codificar mensaje para Gmail API
-        raw_message = base64.urlsafe_b64encode(msg.as_bytes()).decode('utf-8')
-
-        # Enviar via Gmail API
-        service = get_gmail_service()
-        message = service.users().messages().send(
-            userId='me',
-            body={'raw': raw_message}
-        ).execute()
-
-        logger.info(f"Email sent successfully via Gmail API to {to_emails}, Message ID: {message.get('id')}")
-        return True
-
-    except Exception as e:
-        logger.error(f"Error sending email via Gmail API to {to_emails}: {str(e)}")
-        return False
+    from app.services.gmail_service import gmail_service
+    success, _, _ = gmail_service.send_email(
+        to_emails=to_emails,
+        subject=subject,
+        html_content=html_content,
+        attachments=attachments,
+    )
+    return success
 
 
 def send_email_via_smtp(
@@ -194,10 +122,7 @@ def send_email_via_smtp(
     html_content: str,
     attachments: List[dict] = None
 ) -> bool:
-    """
-    Wrapper que usa Gmail API para enviar emails.
-    Mantiene el nombre de la función por compatibilidad.
-    """
+    """Wrapper que usa Gmail API. Mantiene nombre por compatibilidad."""
     return send_email_via_gmail_api(to_emails, subject, html_content, attachments)
 
 
@@ -207,20 +132,8 @@ def send_email_via_resend(
     html_content: str,
     attachments: List[dict] = None
 ) -> bool:
-    """
-    Envía un email usando SMTP de Gmail/Google Workspace.
-    Mantiene el nombre de la función por compatibilidad con el resto del código.
-
-    Args:
-        to_emails: Lista de emails destinatarios
-        subject: Asunto del email
-        html_content: Contenido HTML del email
-        attachments: Lista de adjuntos [{"filename": "name.png", "content": base64_string}]
-
-    Returns:
-        True si el email se envió exitosamente
-    """
-    return send_email_via_smtp(to_emails, subject, html_content, attachments)
+    """Wrapper que usa Gmail API. Mantiene nombre por compatibilidad."""
+    return send_email_via_gmail_api(to_emails, subject, html_content, attachments)
 
 
 def send_qr_email(

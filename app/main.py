@@ -3,7 +3,7 @@ from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-from app.api.v1.endpoints import health, smartsheet, analytics, crm, metrics, six_sigma_metrics, auth, posts, seo, onboarding, qr, video_security, smartsheet_webhook
+from app.api.v1.endpoints import health, smartsheet, analytics, crm, metrics, six_sigma_metrics, auth, posts, seo, onboarding, qr, video_security, smartsheet_webhook, email_send, email_admin
 from app.core.config import settings
 from app.core.logging_config import setup_logging
 from middleware.request_logging import SixSigmaLoggingMiddleware
@@ -102,6 +102,8 @@ app.include_router(onboarding.router, prefix='/api/v1/onboarding', tags=['Onboar
 app.include_router(qr.router, prefix='/api/v1/qr', tags=['QR Code Generator'])
 app.include_router(video_security.router, prefix='/api', tags=['Video Security'])
 app.include_router(smartsheet_webhook.router, prefix='/api/v1/smartsheet-webhook', tags=['Smartsheet Webhook'])
+app.include_router(email_send.router, prefix='/api/v1/email', tags=['Email Service (Public)'])
+app.include_router(email_admin.router, prefix='/api/v1/email-admin', tags=['Email Service (Admin)'])
 
 @app.get('/')
 async def root():
